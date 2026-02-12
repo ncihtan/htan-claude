@@ -1,0 +1,18 @@
+# Virtual environment
+.venv/
+
+# Cached mapping file
+.cache/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+
+# Local Claude Code config
+.claude/settings.local.json
+
+# Working data (not part of plugin)
+data/
