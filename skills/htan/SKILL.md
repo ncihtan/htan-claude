@@ -19,6 +19,7 @@ Tools for accessing data from the **Human Tumor Atlas Network (HTAN)**, an NCI C
 | **Get a quick overview of HTAN data** | `python3 scripts/htan_portal.py summary` |
 | **List portal tables** | `python3 scripts/htan_portal.py tables` |
 | Search HTAN publications | `python3 scripts/htan_pubmed.py search --keyword "..."` |
+| **Look up data model attributes/vocabularies** | `python3 scripts/htan_data_model.py components` |
 | Fetch paper details by PMID | `python3 scripts/htan_pubmed.py fetch PMID` |
 | Download open-access data | `python3 scripts/htan_synapse.py download synID` |
 | Download controlled-access data | `python3 scripts/htan_gen3.py download "drs://dg.4DFC/..."` |
@@ -301,6 +302,50 @@ HTAN publications are identified by NCI grant numbers (CA233xxx Phase 1, CA294xx
 
 ---
 
+## 7. HTAN Data Model (Phase 1)
+
+Query the formal HTAN Phase 1 data model — 1,071 attributes across 64 manifest components with controlled vocabularies, validation rules, and dependency chains. **No authentication required** (stdlib only, fetches from GitHub).
+
+Source: [ncihtan/data-models](https://github.com/ncihtan/data-models) v25.2.1 (final Phase 1 release)
+
+```bash
+# List all 64 manifest components (grouped by category)
+python3 scripts/htan_data_model.py components
+
+# List attributes for a specific component
+python3 scripts/htan_data_model.py attributes "scRNA-seq Level 1"
+python3 scripts/htan_data_model.py attributes "Biospecimen"
+python3 scripts/htan_data_model.py attributes "Demographics"
+
+# Full detail for one attribute (description, valid values, validation rules, dependencies)
+python3 scripts/htan_data_model.py describe "Library Construction Method"
+
+# List all valid values for an attribute
+python3 scripts/htan_data_model.py valid-values "File Format"
+python3 scripts/htan_data_model.py valid-values "Preservation Method"
+
+# Search attributes by keyword (searches names, descriptions, and valid values)
+python3 scripts/htan_data_model.py search "barcode"
+
+# List required attributes for a component
+python3 scripts/htan_data_model.py required "Biospecimen"
+
+# Show dependency chain (e.g., scRNA-seq L1 → Biospecimen → Patient)
+python3 scripts/htan_data_model.py deps "scRNA-seq Level 1"
+
+# Download/refresh model cache
+python3 scripts/htan_data_model.py fetch
+python3 scripts/htan_data_model.py fetch --dry-run
+```
+
+**Output formats**: `--format text` (default), `--format json`
+
+Cache: `~/.cache/htan-skill/HTAN.model.csv` (auto-downloaded on first use)
+
+See `references/htan_data_model.md` for the full component catalog, controlled vocabularies, and identifier validation rules.
+
+---
+
 ## Atlas Centers
 
 | Atlas | Cancer Type | Phase |
@@ -430,7 +475,7 @@ See `references/htan_docs_manual.md` for the full 41-page site map, key facts, i
 | `references/clickhouse_portal.md` | Portal ClickHouse schema, queries, and limitations |
 | `references/authentication_guide.md` | Auth setup for Synapse, Gen3, and BigQuery |
 | `references/htan_atlases.md` | Atlas centers, cancer types, and grant numbers |
-| `references/htan_data_model.md` | Data model, clinical tiers, assay types, identifiers |
+| `references/htan_data_model.md` | Data model v25.2.1: 64 components, controlled vocabularies, validation rules, identifiers |
 | `references/bigquery_tables.md` | BigQuery table schemas and example SQL queries |
 | `references/htan_docs_manual.md` | HTAN Manual site map, citations, identifiers, platforms, FAQ |
 

@@ -18,10 +18,11 @@ All 14 files have been implemented and verified:
 | `scripts/htan_gen3.py` | Done | `--help` and `--dry-run` verified; needs live test with credentials + dbGaP |
 | `scripts/htan_bigquery.py` | Done | `--help` and NL query output verified; needs live test with GCP project |
 | `scripts/htan_file_mapping.py` | Done | `--help`, `update`, `lookup`, `stats` verified |
+| `scripts/htan_data_model.py` | Done | `--help`, `fetch`, `components`, `attributes`, `describe`, `valid-values`, `search`, `required`, `deps` verified; no auth, stdlib only |
 | `references/clickhouse_portal.md` | Done | Portal schema, queries, limitations |
 | `references/authentication_guide.md` | Done | |
 | `references/htan_atlases.md` | Done | |
-| `references/htan_data_model.md` | Done | |
+| `references/htan_data_model.md` | Done | Model-derived reference (v25.2.1): 64 components, controlled vocabularies, validation rules |
 | `references/bigquery_tables.md` | Done | |
 | `references/htan_docs_manual.md` | Done | Full site map of docs.humantumoratlas.org, citations, identifiers, platforms, FAQ |
 | `LICENSE.txt` | Done | MIT |
@@ -37,6 +38,11 @@ All 14 files have been implemented and verified:
 - `htan_pubmed.py search --dry-run` — correct E-utilities URL construction
 - `htan_gen3.py download "drs://dg.4DFC/abc-123-def" --dry-run` — DRS URI validation works
 - `htan_bigquery.py query "..." --dry-run` — schema context output correct
+- `htan_data_model.py fetch` — downloads model CSV from GitHub, caches locally
+- `htan_data_model.py components` — lists all 64 manifest components
+- `htan_data_model.py attributes "scRNA-seq Level 1"` — lists attributes for a component
+- `htan_data_model.py describe "File Format"` — full attribute detail with valid values
+- `htan_data_model.py search "barcode"` — keyword search across attributes
 - All scripts `--help` — works correctly
 
 ### What Still Needs Live Testing
@@ -71,7 +77,7 @@ uv pip install synapseclient gen3 google-cloud-bigquery google-cloud-bigquery-st
 - BigQuery: Application Default Credentials (via `gcloud auth application-default login`)
 
 **When using Claude Code**, avoid running commands that would print credentials or signed URLs into the conversation (which flows through the Anthropic API). Specifically:
-- **Safe to run via Claude**: `--help`, `--dry-run`, PubMed searches, all `htan_portal.py` commands (public read-only, no credentials), BigQuery `tables`/`describe`/`sql` (metadata results are not sensitive), file mapping `update`/`lookup`/`stats`
+- **Safe to run via Claude**: `--help`, `--dry-run`, PubMed searches, all `htan_portal.py` commands (public read-only, no credentials), BigQuery `tables`/`describe`/`sql` (metadata results are not sensitive), file mapping `update`/`lookup`/`stats`, all `htan_data_model.py` commands (fetches from public GitHub, no credentials)
 - **Run in your own terminal**: `htan_gen3.py resolve` (outputs signed URLs), any command where error messages might echo tokens
 
 ## Skill Architecture
@@ -88,6 +94,7 @@ htan-skill/
 │   ├── htan_bigquery.py              # Natural language query of HTAN metadata in ISB-CGC
 │   ├── htan_file_mapping.py          # File ID → Synapse/Gen3 download coordinate mapping
 │   ├── htan_pubmed.py                # PubMed search for HTAN publications
+│   ├── htan_data_model.py            # Phase 1 data model queries (no auth, stdlib only)
 │   └── htan_setup.py                 # Environment setup and dependency installation
 ├── references/
 │   ├── clickhouse_portal.md          # Portal ClickHouse schema, queries, and limitations
@@ -119,6 +126,8 @@ uv pip install synapseclient gen3 google-cloud-bigquery google-cloud-bigquery-st
 PubMed search uses only stdlib (`urllib`, `json`, `xml.etree.ElementTree`) — no additional dependencies.
 
 Portal ClickHouse queries (`htan_portal.py`) also use only stdlib (`urllib`, `json`, `base64`, `ssl`) — no additional dependencies.
+
+Data model queries (`htan_data_model.py`) use only stdlib (`csv`, `json`, `urllib`, `argparse`) — no additional dependencies.
 
 ## Data Access Tiers
 
@@ -556,6 +565,38 @@ python3 scripts/htan_pubmed.py fulltext "tumor microenvironment"
 python3 scripts/htan_pubmed.py search --format json
 ```
 
+### Script: htan_data_model.py
+
+Query the HTAN Phase 1 data model (ncihtan/data-models v25.2.1). No auth required, stdlib only.
+
+```bash
+# Download/refresh model CSV
+python3 scripts/htan_data_model.py fetch
+python3 scripts/htan_data_model.py fetch --dry-run
+
+# List all 64 manifest components
+python3 scripts/htan_data_model.py components
+
+# List attributes for a component
+python3 scripts/htan_data_model.py attributes "scRNA-seq Level 1"
+python3 scripts/htan_data_model.py attributes "Biospecimen"
+
+# Full detail for one attribute
+python3 scripts/htan_data_model.py describe "Library Construction Method"
+
+# List valid values
+python3 scripts/htan_data_model.py valid-values "File Format"
+
+# Search by keyword
+python3 scripts/htan_data_model.py search "barcode"
+
+# Required fields for a component
+python3 scripts/htan_data_model.py required "Biospecimen"
+
+# Dependency chain
+python3 scripts/htan_data_model.py deps "scRNA-seq Level 1"
+```
+
 ## SKILL.md Guidelines
 
 The SKILL.md should:
@@ -596,6 +637,17 @@ python3 scripts/htan_portal.py files --organ Breast --dry-run
 python3 scripts/htan_pubmed.py search --max-results 5
 python3 scripts/htan_pubmed.py search --keyword "spatial transcriptomics" --max-results 3
 python3 scripts/htan_pubmed.py search --dry-run
+
+# Data model (no auth needed, stdlib only)
+python3 scripts/htan_data_model.py fetch
+python3 scripts/htan_data_model.py fetch --dry-run
+python3 scripts/htan_data_model.py components
+python3 scripts/htan_data_model.py attributes "scRNA-seq Level 1"
+python3 scripts/htan_data_model.py describe "File Format"
+python3 scripts/htan_data_model.py valid-values "Preservation Method"
+python3 scripts/htan_data_model.py search "barcode"
+python3 scripts/htan_data_model.py required "Biospecimen"
+python3 scripts/htan_data_model.py deps "scRNA-seq Level 1"
 
 # Other dry-run tests
 python3 scripts/htan_gen3.py download "drs://dg.4DFC/test-guid" --dry-run

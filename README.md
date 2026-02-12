@@ -39,7 +39,7 @@ The portal and PubMed tools use only Python stdlib — no packages to install.
 
 ```bash
 # Invoke the skill
-/htan
+/htan:htan
 
 # Ask Claude to query the portal
 "List all scRNA-seq files from breast cancer in HTAN"
@@ -82,31 +82,33 @@ Three services require credentials for full functionality:
 | **Gen3/CRDC** | Request dbGaP access for study `phs002371`, download credentials from the CRDC portal |
 | **BigQuery** | Run `gcloud auth application-default login` and set `GOOGLE_CLOUD_PROJECT` |
 
-See `htan/references/authentication_guide.md` for detailed instructions.
+See `skills/htan/references/authentication_guide.md` for detailed instructions.
 
 ## Plugin Structure
 
 ```
 htan-skill/
 ├── .claude-plugin/
-│   └── marketplace.json        # Plugin marketplace manifest
-├── htan/
-│   ├── SKILL.md                # Skill definition (loaded by Claude Code)
-│   ├── scripts/                # 7 core Python scripts
-│   │   ├── htan_portal.py      # Portal ClickHouse queries (no auth)
-│   │   ├── htan_pubmed.py      # PubMed search (no auth)
-│   │   ├── htan_file_mapping.py # File ID resolution (no auth)
-│   │   ├── htan_synapse.py     # Synapse downloads
-│   │   ├── htan_gen3.py        # Gen3/CRDC downloads
-│   │   ├── htan_bigquery.py    # BigQuery metadata queries
-│   │   └── htan_setup.py       # Environment setup checker
-│   └── references/             # 6 reference documents
-│       ├── clickhouse_portal.md
-│       ├── authentication_guide.md
-│       ├── bigquery_tables.md
-│       ├── htan_atlases.md
-│       ├── htan_data_model.md
-│       └── htan_docs_manual.md
+│   ├── plugin.json             # Plugin manifest (for --plugin-dir loading)
+│   └── marketplace.json        # Marketplace catalog (for distribution)
+├── skills/
+│   └── htan/                   # Auto-discovered skill → /htan:htan
+│       ├── SKILL.md            # Skill definition (loaded by Claude Code)
+│       ├── scripts/            # 7 core Python scripts
+│       │   ├── htan_portal.py      # Portal ClickHouse queries (no auth)
+│       │   ├── htan_pubmed.py      # PubMed search (no auth)
+│       │   ├── htan_file_mapping.py # File ID resolution (no auth)
+│       │   ├── htan_synapse.py     # Synapse downloads
+│       │   ├── htan_gen3.py        # Gen3/CRDC downloads
+│       │   ├── htan_bigquery.py    # BigQuery metadata queries
+│       │   └── htan_setup.py       # Environment setup checker
+│       └── references/         # 6 reference documents
+│           ├── clickhouse_portal.md
+│           ├── authentication_guide.md
+│           ├── bigquery_tables.md
+│           ├── htan_atlases.md
+│           ├── htan_data_model.md
+│           └── htan_docs_manual.md
 ├── README.md
 ├── LICENSE.txt                 # MIT
 └── CLAUDE.md                   # Developer instructions

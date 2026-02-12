@@ -149,6 +149,11 @@ Table: gc_drs_map_current
 - For Gen3 DRS URIs, join to gc_drs_map_current on entityId or use htan_file_mapping.py for offline lookup
 - After getting entityId: python3 scripts/htan_synapse.py download <entityId>
 - After getting drs_uri: python3 scripts/htan_gen3.py download "drs://<drs_uri>"
+
+=== Data Model Reference ===
+- For valid values of any column, run: python3 scripts/htan_data_model.py valid-values "Column Name"
+- For all attributes in a component: python3 scripts/htan_data_model.py attributes "Component Name"
+- Component names match BigQuery table prefixes (e.g., "scRNA-seq Level 1" → scRNAseq_level1_metadata)
 """.strip()
 
 
