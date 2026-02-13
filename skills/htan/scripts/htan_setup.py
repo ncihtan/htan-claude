@@ -201,7 +201,11 @@ def check_portal_connectivity():
     )
 
     try:
-        ctx = ssl.create_default_context()
+        try:
+            import certifi
+            ctx = ssl.create_default_context(cafile=certifi.where())
+        except ImportError:
+            ctx = ssl.create_default_context()
         with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
             result = resp.read().decode("utf-8").strip()
             if result == "1":

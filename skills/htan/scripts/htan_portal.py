@@ -186,7 +186,14 @@ def clickhouse_query(sql, fmt="JSONEachRow", database=None, timeout=60):
     )
 
     # Create SSL context for HTTPS
-    ctx = ssl.create_default_context()
+    # On macOS with python.org Python, the default cert store may be empty.
+    # Try certifi first (if installed), then fall back to default context.
+    ctx = None
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        ctx = ssl.create_default_context()
 
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:

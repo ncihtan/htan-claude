@@ -63,9 +63,13 @@ def download_model(tag=None, force=False, dry_run=False):
 
     req = urllib.request.Request(url, headers={"User-Agent": "htan-skill/1.0"})
 
-    # Try with default SSL context first, fall back to unverified on macOS cert issues
+    # Try with certifi/default SSL context first, fall back to unverified on macOS cert issues
     try:
-        ctx = ssl.create_default_context()
+        try:
+            import certifi
+            ctx = ssl.create_default_context(cafile=certifi.where())
+        except ImportError:
+            ctx = ssl.create_default_context()
         with urllib.request.urlopen(req, timeout=60, context=ctx) as resp:
             data = resp.read()
     except urllib.error.URLError:
