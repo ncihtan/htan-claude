@@ -2,6 +2,9 @@
 
 A Claude Code plugin for working with the **Human Tumor Atlas Network (HTAN)** — an NCI Cancer Moonshot initiative constructing 3D atlases of the dynamic cellular, morphological, and molecular features of human cancers as they evolve from precancerous lesions to advanced disease.
 
+![frame_0008](https://github.com/user-attachments/assets/e26f18ec-cd74-477e-914f-b25dfd29a3b2)
+
+
 ## What It Does
 
 | Capability | Auth Required | Description |
