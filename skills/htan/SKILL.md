@@ -9,21 +9,27 @@ Tools for accessing data from the **Human Tumor Atlas Network (HTAN)**, an NCI C
 
 ## First-Run Check
 
-**Before doing anything else**, run the setup checker to see what's configured:
+**Before doing anything else**, check if the portal credentials are configured by testing whether the config file exists:
 
 ```bash
-python3 scripts/htan_setup.py --check
+test -f ~/.config/htan-skill/portal.json && echo "Portal configured" || echo "Portal NOT configured"
 ```
 
-If the portal is not configured (or this is the first time using the skill), tell the user they need to run the interactive setup wizard. The wizard requires the user to run it themselves in their terminal because it involves interactive Synapse authentication:
+If the portal is **not configured**, stop and tell the user:
 
-```
-python3 scripts/htan_setup.py init
-```
+> The HTAN skill needs to be set up first. Please run this command **in your own terminal** (not here — it requires interactive input):
+>
+> ```
+> python3 /path/to/skills/htan/scripts/htan_setup.py init
+> ```
+>
+> The wizard will walk you through Synapse authentication and downloading portal credentials. You'll need to be a member of the [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) Synapse team. Once setup is complete, come back and invoke `/htan` again.
 
-The wizard walks through: Synapse auth, portal credential download (requires [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team membership), BigQuery, and Gen3/CRDC. Each step detects what's already configured and skips if satisfied. Portal credentials are required for most operations; PubMed search and data model queries work without any credentials.
+**Do not run `htan_setup.py init` via the Bash tool** — it requires interactive Synapse login that cannot work through Claude.
 
-Once setup is complete, proceed to the user's request.
+PubMed search (`htan_pubmed.py`) and data model queries (`htan_data_model.py`) work without any credentials and can be used immediately.
+
+Once setup is confirmed, proceed to the user's request.
 
 ---
 

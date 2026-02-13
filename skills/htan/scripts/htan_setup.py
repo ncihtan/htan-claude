@@ -88,12 +88,12 @@ def _get_project_root():
 
 
 def check_python_version():
-    """Verify Python >= 3.11."""
+    """Verify Python >= 3.10."""
     version = sys.version_info
-    ok = version >= (3, 11)
+    ok = version >= (3, 10)
     msg = f"{version.major}.{version.minor}.{version.micro}"
     if not ok:
-        msg += " (requires >= 3.11)"
+        msg += " (requires >= 3.10)"
     print_status("Python", ok, msg)
     return ok
 
@@ -264,15 +264,15 @@ def step_environment(force=False):
 
     # 1a. Python version
     version = sys.version_info
-    ok = version >= (3, 11)
+    ok = version >= (3, 10)
     msg = f"{version.major}.{version.minor}.{version.micro}"
     if not ok:
-        msg += " (requires >= 3.11)"
+        msg += " (requires >= 3.10)"
         all_ok = False
     print_status("Python", ok, msg)
 
     if not ok:
-        print("  Python 3.11+ is required. Please upgrade Python.", file=sys.stderr)
+        print("  Python 3.10+ is required. Please upgrade Python.", file=sys.stderr)
         return False
 
     # 1b. uv installed
