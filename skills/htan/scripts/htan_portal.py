@@ -73,7 +73,11 @@ def normalize_sql(sql):
 
     ClickHouse doesn't support the != operator — use <> instead.
     This is safe because != and <> are semantically identical in all SQL dialects.
+
+    Also handles \\!= which occurs when shells (zsh, bash with histexpand)
+    escape ! inside double-quoted strings.
     """
+    sql = sql.replace('\\!=', '<>')
     sql = sql.replace('!=', '<>')
     return sql
 
