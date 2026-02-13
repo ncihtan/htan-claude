@@ -7,11 +7,17 @@ description: Access HTAN (Human Tumor Atlas Network) data — query the portal d
 
 Tools for accessing data from the **Human Tumor Atlas Network (HTAN)**, an NCI Cancer Moonshot initiative constructing 3D atlases of human cancers from precancerous lesions to advanced disease.
 
+## Critical Rules
+
+**NEVER run `htan_setup.py` via Bash.** It is an interactive wizard that will fail or create broken state.
+
+**NEVER `cd` into the plugin cache directory.** Always use absolute paths via `$HTAN_DIR`.
+
+**NEVER create a virtual environment or install packages inside the plugin cache directory.** Venvs go in the user's working directory.
+
 ## Running Scripts
 
-All script paths below are relative to **this skill's directory**. To find the absolute path, use the `__SKILL_DIR__` that Claude Code sets, or locate scripts relative to this SKILL.md file.
-
-Set this variable at the start of the session and use it for ALL script invocations:
+Set this variable once at the start of the session and use it for ALL script invocations:
 
 ```bash
 HTAN_DIR="$(dirname "$(find ~/.claude/plugins -path '*/htan/*/skills/htan/SKILL.md' -print -quit 2>/dev/null)")"
@@ -23,34 +29,90 @@ Then run scripts as:
 python3 "$HTAN_DIR/scripts/htan_portal.py" tables
 ```
 
-**NEVER `cd` into the plugin cache directory.** Always use absolute paths.
+## First-Run Setup
 
-## Setup Check
+On first invocation (or when services are not configured), follow this flow **in order**.
 
-**NEVER run `htan_setup.py` via Bash.** It requires interactive Synapse login and will fail or create broken state.
-
-**NEVER create a virtual environment or install packages in the plugin cache directory.**
-
-Before doing anything, check if the portal is configured:
+### Step 1: Check status
 
 ```bash
-test -f ~/.config/htan-skill/portal.json && echo "CONFIGURED" || echo "NOT_CONFIGURED"
+python3 "$HTAN_DIR/scripts/htan_quicksetup.py" check
 ```
 
-- If `CONFIGURED`: proceed to the user's request.
-- If `NOT_CONFIGURED`: **stop and tell the user** (do NOT try to fix it yourself):
+This outputs JSON with the status of each service. Parse it and present a dashboard to the user:
 
-  > The HTAN portal credentials aren't set up yet. Please run this in your own terminal:
-  >
-  > ```
-  > pip install synapseclient && python3 PATH_TO/scripts/htan_setup.py init
-  > ```
-  >
-  > You'll need to join the [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) Synapse team first. Once complete, come back and invoke `/htan` again.
+```
+HTAN Skill — Setup Status
 
-**No-auth tools** (work without any setup):
-- `htan_pubmed.py` — PubMed search
-- `htan_data_model.py` — data model queries (fetches from GitHub)
+[status] Synapse credentials    ~/.synapseConfig found
+[status] Portal credentials     Not configured — requires setup
+[status] Gen3/CRDC              Optional — needed for controlled-access downloads
+[status] BigQuery               Optional — needed for advanced metadata queries
+```
+
+Use checkmark for configured, X for missing required, warning for missing optional.
+
+### Step 2: Synapse auth (required)
+
+If `status.synapse.configured` is `false`: **stop and tell the user** they need to create Synapse credentials. Do NOT try to create the file yourself. Show them:
+
+> **Synapse credentials are required for HTAN setup.** Please do the following:
+>
+> 1. Create a free account at https://www.synapse.org
+> 2. Go to **Account Settings > Personal Access Tokens**: https://www.synapse.org/#!PersonalAccessTokens:
+> 3. Create a token with **view** and **download** permissions
+> 4. Create the file `~/.synapseConfig`:
+>    ```
+>    [authentication]
+>    authtoken = <your-token-here>
+>    ```
+>
+> Once done, invoke `/htan` again to continue setup.
+
+**Do not proceed past this step** if Synapse is not configured. The remaining steps depend on it.
+
+### Step 3: Create venv and install dependencies
+
+If there is no `.venv` in the user's current working directory, create one. This is needed before the portal step (which requires `synapseclient`).
+
+```bash
+python3 "$HTAN_DIR/scripts/htan_quicksetup.py" venv
+```
+
+This creates `.venv/` in the current working directory with all HTAN dependencies. **Not** in the plugin cache.
+
+### Step 4: Auto-configure portal credentials
+
+If `status.portal.configured` is `false`, download credentials from Synapse. Must use the venv Python since it requires `synapseclient`:
+
+```bash
+.venv/bin/python "$HTAN_DIR/scripts/htan_quicksetup.py" portal
+```
+
+This will:
+- Log in to Synapse using `~/.synapseConfig`
+- Auto-join the HTAN Claude Skill Users team if eligible
+- Download and save credentials to `~/.config/htan-skill/portal.json`
+- Verify connectivity
+
+If it fails with an access error, tell the user to join the team at https://www.synapse.org/Team:3574960.
+
+### Step 5: Show final status and optional setup
+
+After steps 1-4, present the updated status. For optional items, show instructions:
+
+- **Gen3/CRDC** (controlled-access data): Requires dbGaP authorization for study `phs002371` — apply at https://dbgap.ncbi.nlm.nih.gov/
+- **BigQuery** (advanced metadata queries): Run `gcloud auth application-default login` in your terminal
+
+### When setup is already complete
+
+If Step 1 shows synapse + portal are both configured, **skip all setup steps** and proceed directly to the user's request. No need to create a venv for portal/pubmed/data-model queries (they use stdlib only).
+
+Only create a venv if the user needs Synapse downloads, Gen3 downloads, or BigQuery queries.
+
+**No-auth tools** (always work, no setup needed):
+- `htan_pubmed.py` — PubMed search (stdlib only)
+- `htan_data_model.py` — data model queries (stdlib only, fetches from GitHub)
 
 ---
 
