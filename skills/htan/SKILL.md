@@ -44,13 +44,11 @@ This outputs JSON with the status of each service. Parse it and present a dashbo
 ```
 HTAN Skill — Setup Status
 
-[status] Synapse credentials    ~/.synapseConfig found
-[status] Portal credentials     Not configured — requires setup
-[status] Gen3/CRDC              Optional — needed for controlled-access downloads
-[status] BigQuery               Optional — needed for advanced metadata queries
+✅ Synapse credentials    ~/.synapseConfig found
+❌ Portal credentials     Not configured — requires setup
+⚠️  Gen3/CRDC              Optional — needed for controlled-access downloads
+⚠️  BigQuery               Optional — needed for advanced metadata queries
 ```
-
-Use checkmark for configured, X for missing required, warning for missing optional.
 
 ### Step 2: Synapse auth (required)
 
