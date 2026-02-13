@@ -6,11 +6,5 @@
     "name": "HTAN DCC"
   },
   "license": "MIT",
-  "mcpServers": {
-    "htan-portal": {
-      "command": "uv",
-      "args": ["run", "${CLAUDE_PLUGIN_ROOT}/servers/htan_portal_server.py"],
-      "env": {}
-    }
-  }
+  "mcpServers": "./.mcp.json"
 }
