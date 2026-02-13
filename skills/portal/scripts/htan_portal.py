@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Query HTAN data via the HTAN Data Portal's ClickHouse backend.
 
-The HTAN data portal (data.humantumoratlas.org) uses a ClickHouse cloud database
-with public read-only credentials. This script queries it directly via the HTTP
-interface — zero extra dependencies (stdlib only).
+The HTAN data portal (data.humantumoratlas.org) uses a ClickHouse cloud database.
+Credentials are loaded from ~/.config/htan-skill/portal.json (populated by
+`htan_setup.py init-portal`). This script queries via the HTTP interface —
+zero extra dependencies (stdlib only).
 
 Provides a simpler 2-step workflow: portal query → download (vs. BigQuery → file
-mapping → download). No GCP project, billing, or auth setup required.
+mapping → download). No GCP project or billing required.
 
 Usage:
     python3 scripts/htan_portal.py tables
@@ -30,15 +31,19 @@ import urllib.parse
 import urllib.request
 
 
-# --- ClickHouse connection settings ---
-# Public read-only credentials embedded in the HTAN portal JavaScript
-CLICKHOUSE_HOST = "REDACTED_HOST"
-CLICKHOUSE_PORT = 8443
-CLICKHOUSE_USER = "REDACTED_USER"
-CLICKHOUSE_PASSWORD = "REDACTED_PASSWORD"
-CLICKHOUSE_DEFAULT_DB = "htan_2026_01_08"
+# --- ClickHouse connection (lazy-loaded from config file) ---
+_portal_cfg = None
 
-CLICKHOUSE_URL = f"https://{CLICKHOUSE_HOST}:{CLICKHOUSE_PORT}/"
+
+def _cfg():
+    """Lazy-load portal credentials from ~/.config/htan-skill/portal.json."""
+    global _portal_cfg
+    if _portal_cfg is None:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from htan_portal_config import load_portal_config
+        _portal_cfg = load_portal_config()
+    return _portal_cfg
+
 
 DEFAULT_LIMIT = 100
 SQL_DEFAULT_LIMIT = 1000
@@ -112,38 +117,42 @@ def ensure_limit(sql, limit=DEFAULT_LIMIT):
     return sql
 
 
-def discover_database(current_default=CLICKHOUSE_DEFAULT_DB):
+def discover_database():
     """Discover the latest HTAN database by querying SHOW DATABASES.
 
-    Falls back to the hardcoded default if discovery fails.
+    Falls back to the config file's default_database if discovery fails.
     """
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from htan_portal_config import get_default_database
+    config_default = get_default_database(_cfg())
+
     try:
         # Query without specifying a database
         resp = clickhouse_query("SHOW DATABASES LIKE 'htan_%'", fmt="TabSeparated", database="")
         if not resp.strip():
-            return current_default
+            return config_default
 
         databases = [line.strip() for line in resp.strip().split("\n") if line.strip()]
         # Sort by name (date suffix means lexicographic = chronological)
         htan_dbs = sorted([db for db in databases if db.startswith("htan_")], reverse=True)
         if htan_dbs:
             latest = htan_dbs[0]
-            if latest != current_default:
-                print(f"Discovered newer database: {latest} (default was {current_default})", file=sys.stderr)
+            if config_default and latest != config_default:
+                print(f"Discovered newer database: {latest} (config default was {config_default})", file=sys.stderr)
             return latest
     except Exception:
         pass
 
-    return current_default
+    return config_default
 
 
-def clickhouse_query(sql, fmt="JSONEachRow", database=CLICKHOUSE_DEFAULT_DB, timeout=60):
+def clickhouse_query(sql, fmt="JSONEachRow", database=None, timeout=60):
     """Execute a read-only SQL query against the ClickHouse HTTP interface.
 
     Args:
         sql: SQL query string
         fmt: ClickHouse output format (JSONEachRow, TabSeparated, CSV, etc.)
-        database: Database name to query against
+        database: Database name to query against (None = use config default)
         timeout: HTTP request timeout in seconds (default: 60)
 
     Returns:
@@ -154,14 +163,18 @@ def clickhouse_query(sql, fmt="JSONEachRow", database=CLICKHOUSE_DEFAULT_DB, tim
     """
     sql = normalize_sql(sql)
 
+    cfg = _cfg()
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from htan_portal_config import get_clickhouse_url
+
     params = {"default_format": fmt}
-    if database:
+    if database is not None:
         params["database"] = database
 
-    url = CLICKHOUSE_URL + "?" + urllib.parse.urlencode(params)
+    url = get_clickhouse_url(cfg) + "?" + urllib.parse.urlencode(params)
 
     # Basic auth header
-    credentials = base64.b64encode(f"{CLICKHOUSE_USER}:{CLICKHOUSE_PASSWORD}".encode()).decode()
+    credentials = base64.b64encode(f"{cfg['user']}:{cfg['password']}".encode()).decode()
 
     req = urllib.request.Request(
         url,
@@ -796,7 +809,7 @@ WHERE DataFileID IN ({escaped_ids})"""
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Query HTAN data via the portal ClickHouse backend (no auth required)",
+        description="Query HTAN data via the portal ClickHouse backend",
         epilog="Examples:\n"
         "  python3 scripts/htan_portal.py tables\n"
         "  python3 scripts/htan_portal.py describe files\n"
@@ -814,7 +827,7 @@ def main():
             sp.add_argument("--limit", "-l", type=int, default=DEFAULT_LIMIT, help=f"Row limit (default: {DEFAULT_LIMIT})")
         sp.add_argument("--output", "-o", choices=["text", "json", "csv"], default="text", help="Output format")
         sp.add_argument("--dry-run", action="store_true", help="Show SQL without executing")
-        sp.add_argument("--database", "-d", help=f"Database name (default: auto-discover, fallback: {CLICKHOUSE_DEFAULT_DB})")
+        sp.add_argument("--database", "-d", help="Database name (default: auto-discover)")
 
     # files subcommand
     sp_files = subparsers.add_parser("files", help="Query files with filters (organ, assay, atlas, level)")
@@ -867,7 +880,7 @@ def main():
     sp_sql.add_argument("--no-limit", action="store_true", help="Skip auto-applying LIMIT clause")
     sp_sql.add_argument("--output", "-o", choices=["text", "json", "csv"], default="text", help="Output format")
     sp_sql.add_argument("--dry-run", action="store_true", help="Show SQL without executing")
-    sp_sql.add_argument("--database", "-d", help=f"Database name (default: auto-discover, fallback: {CLICKHOUSE_DEFAULT_DB})")
+    sp_sql.add_argument("--database", "-d", help="Database name (default: auto-discover)")
 
     # tables subcommand
     sp_tables = subparsers.add_parser("tables", help="List available tables")

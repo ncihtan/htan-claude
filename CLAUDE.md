@@ -11,8 +11,9 @@ All 14 files have been implemented and verified:
 | File | Status | Notes |
 |---|---|---|
 | `SKILL.md` | Done | Skill definition with unified workflow |
-| `scripts/htan_portal.py` | Done | Portal ClickHouse queries — no auth, zero dependencies |
-| `scripts/htan_setup.py` | Done | `--help` and `--check` verified; includes portal connectivity check |
+| `scripts/htan_portal_config.py` | Done | Shared config loader for portal credentials (stdlib only) |
+| `scripts/htan_portal.py` | Done | Portal ClickHouse queries — credentials from config file, zero dependencies |
+| `scripts/htan_setup.py` | Done | `init` wizard, `init-portal`, `--check` verified; portal check reads from config |
 | `scripts/htan_pubmed.py` | Done | `--help`, `--dry-run`, and live search verified |
 | `scripts/htan_synapse.py` | Done | `--help` verified; needs live test with credentials |
 | `scripts/htan_gen3.py` | Done | `--help` and `--dry-run` verified; needs live test with credentials + dbGaP |
@@ -54,61 +55,83 @@ All 14 files have been implemented and verified:
 
 ## Environment Setup
 
-The project uses a **uv virtual environment** for reproducibility:
+The project uses a **uv virtual environment** for reproducibility.
 
-```bash
-cd /Users/ataylor/Documents/projects/htan2/htan-skill
-source .venv/bin/activate
+### uv Package Management Rules
+
+All Python dependencies **must** be managed with `uv`. Never use `pip`, `pip-tools`, `poetry`, or `conda` for dependency tasks.
+
+- **Run scripts**: `uv run scripts/<name>.py` (automatically resolves dependencies — no manual venv activation needed)
+- **Run PyPI tools directly**: `uvx ruff`, `uvx pytest`
+- **Add a package to the venv**: `uv pip install <package>`
+- **Recreate the environment**: `uv venv .venv && uv pip install synapseclient gen3 google-cloud-bigquery google-cloud-bigquery-storage pandas db-dtypes`
+
+When executing any Python code in this project, **always use `uv run`** instead of activating the venv manually. This ensures the correct environment is used regardless of shell state.
+
+### PEP 723 Inline Script Metadata
+
+Scripts that require third-party packages should declare dependencies inline using PEP 723 metadata. This makes each script fully portable — `uv run` will automatically fetch the declared dependencies without any prior environment setup:
+
+```python
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "synapseclient>=4.0",
+#     "pandas>=2.0",
+# ]
+# ///
 ```
 
-All dependencies are installed in `.venv/`. To recreate:
-
-```bash
-uv venv .venv
-source .venv/bin/activate
-uv pip install synapseclient gen3 google-cloud-bigquery google-cloud-bigquery-storage pandas
-```
+Never rely on implicit existence of packages in the surrounding environment. Explicit dependency specification should travel with the code. Scripts using only stdlib (e.g., `htan_portal.py`, `htan_pubmed.py`, `htan_data_model.py`) do not need a metadata block.
 
 ## Credential Security
 
 **Important**: Credentials are stored in config files, NOT environment variables in this setup:
+- **Portal ClickHouse**: `~/.config/htan-skill/portal.json` (populated by `htan_setup.py init-portal`, downloaded from Synapse project syn73720845 gated by Team:3574960 membership)
 - Synapse: `~/.synapseConfig`
 - Gen3: `~/.gen3/credentials.json`
 - BigQuery: Application Default Credentials (via `gcloud auth application-default login`)
 
+Portal credentials are **not stored in source code**. They are fetched from Synapse behind a team membership gate, providing an audit trail of who accessed them.
+
 **When using Claude Code**, avoid running commands that would print credentials or signed URLs into the conversation (which flows through the Anthropic API). Specifically:
-- **Safe to run via Claude**: `--help`, `--dry-run`, PubMed searches, all `htan_portal.py` commands (public read-only, no credentials), BigQuery `tables`/`describe`/`sql` (metadata results are not sensitive), file mapping `update`/`lookup`/`stats`, all `htan_data_model.py` commands (fetches from public GitHub, no credentials)
+- **Safe to run via Claude**: `--help`, `--dry-run`, PubMed searches, all `htan_portal.py` commands (credentials read from local config, not echoed), BigQuery `tables`/`describe`/`sql` (metadata results are not sensitive), file mapping `update`/`lookup`/`stats`, all `htan_data_model.py` commands (fetches from public GitHub, no credentials)
 - **Run in your own terminal**: `htan_gen3.py resolve` (outputs signed URLs), any command where error messages might echo tokens
 
 ## Skill Architecture
 
 ```
 htan-skill/
-├── SKILL.md                          # Skill definition (name, description, instructions)
-├── .venv/                            # uv virtual environment (not committed)
 ├── .cache/                           # Cached mapping file (not committed)
-├── scripts/
-│   ├── htan_portal.py                # Query HTAN portal ClickHouse (no auth, zero deps)
-│   ├── htan_synapse.py               # Synapse open-access data download
-│   ├── htan_gen3.py                  # Gen3/CRDC controlled-access data download via DRS
-│   ├── htan_bigquery.py              # Natural language query of HTAN metadata in ISB-CGC
-│   ├── htan_file_mapping.py          # File ID → Synapse/Gen3 download coordinate mapping
-│   ├── htan_pubmed.py                # PubMed search for HTAN publications
-│   ├── htan_data_model.py            # Phase 1 data model queries (no auth, stdlib only)
-│   └── htan_setup.py                 # Environment setup and dependency installation
-├── references/
-│   ├── clickhouse_portal.md          # Portal ClickHouse schema, queries, and limitations
-│   ├── htan_data_model.md            # HTAN data model, entity types, and controlled vocabularies
-│   ├── htan_atlases.md               # Atlas centers and their cancer types
-│   ├── bigquery_tables.md            # ISB-CGC BigQuery table reference for HTAN
-│   ├── authentication_guide.md       # Auth setup for Synapse, Gen3, and BigQuery
-│   └── htan_docs_manual.md           # Full site map of docs.humantumoratlas.org + key facts
-└── LICENSE.txt
+├── .venv/                            # uv virtual environment (not committed)
+├── CLAUDE.md                         # Project instructions (this file)
+├── LICENSE.txt
+├── README.md
+└── skills/
+    └── portal/
+        ├── SKILL.md                  # Skill definition (name, description, instructions)
+        ├── scripts/
+        │   ├── htan_portal_config.py # Shared config loader for portal credentials (stdlib only)
+        │   ├── htan_portal.py        # Query HTAN portal ClickHouse (creds from config, zero deps)
+        │   ├── htan_synapse.py       # Synapse open-access data download
+        │   ├── htan_gen3.py          # Gen3/CRDC controlled-access data download via DRS
+        │   ├── htan_bigquery.py      # Natural language query of HTAN metadata in ISB-CGC
+        │   ├── htan_file_mapping.py  # File ID → Synapse/Gen3 download coordinate mapping
+        │   ├── htan_pubmed.py        # PubMed search for HTAN publications
+        │   ├── htan_data_model.py    # Phase 1 data model queries (no auth, stdlib only)
+        │   └── htan_setup.py         # Environment setup and dependency installation
+        └── references/
+            ├── clickhouse_portal.md  # Portal ClickHouse schema, queries, and limitations
+            ├── htan_data_model.md    # HTAN data model, entity types, and controlled vocabularies
+            ├── htan_atlases.md       # Atlas centers and their cancer types
+            ├── bigquery_tables.md    # ISB-CGC BigQuery table reference for HTAN
+            ├── authentication_guide.md  # Auth setup for Synapse, Gen3, and BigQuery
+            └── htan_docs_manual.md   # Full site map of docs.humantumoratlas.org + key facts
 ```
 
 ## Core Dependencies
 
-All dependencies are installed in the uv venv. To install:
+Dependencies are managed by `uv`. Scripts with third-party deps should declare them via PEP 723 inline metadata (see above). To install all deps into the project venv:
 
 ```bash
 uv pip install synapseclient gen3 google-cloud-bigquery google-cloud-bigquery-storage pandas db-dtypes
@@ -125,7 +148,7 @@ uv pip install synapseclient gen3 google-cloud-bigquery google-cloud-bigquery-st
 
 PubMed search uses only stdlib (`urllib`, `json`, `xml.etree.ElementTree`) — no additional dependencies.
 
-Portal ClickHouse queries (`htan_portal.py`) also use only stdlib (`urllib`, `json`, `base64`, `ssl`) — no additional dependencies.
+Portal ClickHouse queries (`htan_portal.py`) also use only stdlib (`urllib`, `json`, `base64`, `ssl`) — no additional dependencies. Credentials are loaded from `~/.config/htan-skill/portal.json` via `htan_portal_config.py`.
 
 Data model queries (`htan_data_model.py`) use only stdlib (`csv`, `json`, `urllib`, `argparse`) — no additional dependencies.
 
@@ -137,7 +160,7 @@ HTAN data has two access levels. The skill must handle both. The portal provides
 
 - **Platform**: HTAN Data Portal ClickHouse backend
 - **Client**: stdlib only (`urllib`, `json`, `base64`, `ssl`)
-- **Auth**: None — public read-only credentials
+- **Auth**: Credentials cached at `~/.config/htan-skill/portal.json` (fetched from Synapse via `htan_setup.py init-portal`)
 - **Data types**: File metadata, download coordinates, basic clinical data
 - **Key tables**: `files`, `demographics`, `diagnosis`, `cases`, `specimen`, `atlases`, `publication_manifest`
 - **Key operations**: SQL queries via HTTP POST, file discovery with filters, manifest generation
@@ -473,10 +496,15 @@ python3 scripts/htan_portal.py manifest HTA9_1_19512 HTA9_1_19553 --output-dir .
 
 ### Script: htan_setup.py
 
-Verify and install dependencies, check auth configuration and portal connectivity:
+Interactive setup wizard and dependency/auth checker:
 ```bash
-python3 scripts/htan_setup.py          # Check all services
-python3 scripts/htan_setup.py --check  # Check only, don't install
+python3 scripts/htan_setup.py init              # Interactive setup wizard (first-time setup)
+python3 scripts/htan_setup.py init --force       # Re-run all steps even if configured
+python3 scripts/htan_setup.py init --non-interactive  # Skip prompts (CI/scripted)
+python3 scripts/htan_setup.py                    # Check all services
+python3 scripts/htan_setup.py --check            # Check only, don't install
+python3 scripts/htan_setup.py init-portal        # Download portal credentials from Synapse
+python3 scripts/htan_setup.py init-portal --force  # Overwrite existing config
 ```
 
 ### Script: htan_synapse.py
@@ -600,7 +628,7 @@ python3 scripts/htan_data_model.py deps "scRNA-seq Level 1"
 ## SKILL.md Guidelines
 
 The SKILL.md should:
-- Use `name: htan` as the skill name (invoked via `/htan`)
+- Use `name: portal` as the skill name (invoked via `/htan:portal`)
 - Description should mention: HTAN data access, portal ClickHouse, Synapse, Gen3/CRDC, BigQuery, and publication search
 - Body should explain the 6 capabilities and when to use each
 - Reference scripts for each operation
@@ -623,9 +651,12 @@ Every script supports `--dry-run` for validation without API calls.
 
 ```bash
 source .venv/bin/activate
-python3 scripts/htan_setup.py --check
 
-# Portal (no auth needed)
+# First-time setup (interactive wizard — run once)
+# python3 scripts/htan_setup.py init
+
+# Check status
+python3 scripts/htan_setup.py --check
 python3 scripts/htan_portal.py tables
 python3 scripts/htan_portal.py describe files
 python3 scripts/htan_portal.py files --organ Breast --limit 5

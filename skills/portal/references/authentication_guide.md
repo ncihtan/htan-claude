@@ -1,5 +1,19 @@
 # HTAN Authentication Guide
 
+## Recommended: Interactive Setup Wizard
+
+The easiest way to set up all authentication is the interactive wizard:
+
+```bash
+python3 scripts/htan_setup.py init
+```
+
+This walks through environment setup, Synapse, portal credentials, BigQuery, and Gen3/CRDC in order, detecting what's already configured and providing instructions for anything missing.
+
+The manual instructions below are kept as reference for individual service setup.
+
+---
+
 This guide covers authentication setup for all three HTAN data platforms.
 
 ---

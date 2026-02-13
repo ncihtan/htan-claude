@@ -6,7 +6,8 @@ A Claude Code plugin for working with the **Human Tumor Atlas Network (HTAN)** �
 
 | Capability | Auth Required | Description |
 |---|---|---|
-| **Portal queries** (ClickHouse) | None | Query file metadata, clinical data, download coordinates |
+| **Portal queries** (ClickHouse) | Synapse team membership | Query file metadata, clinical data, download coordinates |
+| **Data model** | None | Query HTAN data model components, attributes, controlled vocabularies |
 | **PubMed search** | None | Search HTAN-affiliated publications by keyword, author, year |
 | **File mapping** | None | Resolve HTAN file IDs to Synapse/Gen3 download coordinates |
 | **Synapse download** | Synapse token | Download open-access data (processed matrices, clinical) |
@@ -19,27 +20,37 @@ A Claude Code plugin for working with the **Human Tumor Atlas Network (HTAN)** �
 
 ```bash
 # Add this repository as a marketplace
-/plugin marketplace add owner/htan-skill
+/plugin marketplace add ncihtan/htan-claude
 
 # Install the HTAN plugin
-/plugin install htan@htan-skill
+/plugin install htan@htan-claude
 ```
 
 ### Manual installation
 
 ```bash
-git clone https://github.com/owner/htan-skill.git ~/.claude/skills/htan-skill
+git clone https://github.com/ncihtan/htan-claude.git ~/.claude/skills/htan-claude
 ```
 
 Then reference the skill directory in your Claude Code configuration.
 
-## Quick Start (Zero Dependencies)
+## Setup
 
-The portal and PubMed tools use only Python stdlib — no packages to install.
+After installing, run the interactive setup wizard:
+
+```bash
+python3 scripts/htan_setup.py init
+```
+
+This walks you through portal credentials (requires [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team membership), Synapse auth, BigQuery, and Gen3/CRDC setup. Each step detects what's already configured and skips if satisfied.
+
+The portal and PubMed tools use only Python stdlib — no packages to install beyond Python 3.11+.
+
+## Quick Start
 
 ```bash
 # Invoke the skill
-/htan:htan
+/htan:portal
 
 # Ask Claude to query the portal
 "List all scRNA-seq files from breast cancer in HTAN"
@@ -49,6 +60,9 @@ The portal and PubMed tools use only Python stdlib — no packages to install.
 
 # Look up a file ID
 "Look up HTAN file HTA9_1_19512"
+
+# Query the data model
+"What attributes are required for scRNA-seq Level 1 manifests?"
 ```
 
 ## Optional Dependencies
@@ -74,35 +88,36 @@ uv pip install synapseclient gen3 google-cloud-bigquery google-cloud-bigquery-st
 
 ## Authentication Setup
 
-Three services require credentials for full functionality:
-
 | Service | How to Set Up |
 |---|---|
+| **Portal** | Join [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team, then run `python3 scripts/htan_setup.py init-portal` |
 | **Synapse** | Get a Personal Access Token from synapse.org, set `SYNAPSE_AUTH_TOKEN` or configure `~/.synapseConfig` |
 | **Gen3/CRDC** | Request dbGaP access for study `phs002371`, download credentials from the CRDC portal |
 | **BigQuery** | Run `gcloud auth application-default login` and set `GOOGLE_CLOUD_PROJECT` |
 
-See `skills/htan/references/authentication_guide.md` for detailed instructions.
+See `skills/portal/references/authentication_guide.md` for detailed instructions.
 
 ## Plugin Structure
 
 ```
-htan-skill/
+htan-claude/
 ├── .claude-plugin/
-│   ├── plugin.json             # Plugin manifest (for --plugin-dir loading)
-│   └── marketplace.json        # Marketplace catalog (for distribution)
+│   ├── plugin.json             # Plugin manifest
+│   └── marketplace.json        # Marketplace catalog
 ├── skills/
-│   └── htan/                   # Auto-discovered skill → /htan:htan
+│   └── portal/                 # Auto-discovered skill → /htan:portal
 │       ├── SKILL.md            # Skill definition (loaded by Claude Code)
-│       ├── scripts/            # 7 core Python scripts
-│       │   ├── htan_portal.py      # Portal ClickHouse queries (no auth)
-│       │   ├── htan_pubmed.py      # PubMed search (no auth)
-│       │   ├── htan_file_mapping.py # File ID resolution (no auth)
-│       │   ├── htan_synapse.py     # Synapse downloads
-│       │   ├── htan_gen3.py        # Gen3/CRDC downloads
-│       │   ├── htan_bigquery.py    # BigQuery metadata queries
-│       │   └── htan_setup.py       # Environment setup checker
-│       └── references/         # 6 reference documents
+│       ├── scripts/
+│       │   ├── htan_portal_config.py  # Portal credential loader (stdlib)
+│       │   ├── htan_portal.py         # Portal ClickHouse queries (stdlib)
+│       │   ├── htan_pubmed.py         # PubMed search (stdlib)
+│       │   ├── htan_data_model.py     # Data model queries (stdlib)
+│       │   ├── htan_file_mapping.py   # File ID resolution
+│       │   ├── htan_synapse.py        # Synapse downloads
+│       │   ├── htan_gen3.py           # Gen3/CRDC downloads
+│       │   ├── htan_bigquery.py       # BigQuery metadata queries
+│       │   └── htan_setup.py          # Setup wizard and auth checker
+│       └── references/
 │           ├── clickhouse_portal.md
 │           ├── authentication_guide.md
 │           ├── bigquery_tables.md

@@ -1,7 +1,7 @@
 {
-  "name": "htan-skill",
+  "name": "htan-claude",
   "owner": {
-    "name": "ataylor"
+    "name": "HTAN DCC"
   },
   "metadata": {
     "version": "1.0.0",
@@ -11,14 +11,14 @@
     {
       "name": "htan",
       "source": "./",
-      "description": "Access HTAN data — query the portal database, download from Synapse and Gen3/CRDC, query metadata in BigQuery, and search publications on PubMed",
+      "description": "Access data from the Human Tumor Atlas Network (HTAN) — query the portal database, download from Synapse and Gen3/CRDC, query metadata in BigQuery, and search publications on PubMed",
       "version": "1.0.0",
-      "author": { "name": "ataylor" },
+      "author": { "name": "HTAN DCC" },
       "license": "MIT",
       "category": "life-sciences",
       "tags": ["htan", "cancer", "bioinformatics", "genomics", "nci"],
       "strict": false,
-      "skills": ["./skills/htan"]
+      "skills": ["./skills/portal"]
     }
   ]
 }

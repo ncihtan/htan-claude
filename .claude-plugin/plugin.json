@@ -3,7 +3,7 @@
   "description": "Access HTAN data — query the portal database, download from Synapse and Gen3/CRDC, query metadata in BigQuery, and search publications on PubMed",
   "version": "1.0.0",
   "author": {
-    "name": "ataylor"
+    "name": "HTAN DCC"
   },
   "license": "MIT",
   "category": "life-sciences",

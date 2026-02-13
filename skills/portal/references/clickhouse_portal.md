@@ -1,26 +1,37 @@
 # HTAN Portal ClickHouse Reference
 
-The HTAN data portal (data.humantumoratlas.org) uses a **ClickHouse cloud database** as its runtime query backend. Public read-only credentials are embedded in the portal's browser JavaScript, enabling direct SQL queries via the ClickHouse HTTP interface.
+The HTAN data portal (data.humantumoratlas.org) uses a **ClickHouse cloud database** as its runtime query backend. Read-only credentials are fetched from Synapse (gated by team membership) and cached locally, enabling direct SQL queries via the ClickHouse HTTP interface.
 
-## Connection Details
+## Connection Setup
+
+The portal uses public read-only credentials gated through Synapse team membership.
+
+**First-time setup:**
+1. Join the [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team (self-service)
+2. Run: `python3 scripts/htan_setup.py init-portal`
+
+This downloads the credentials from Synapse and caches them locally at
+`~/.config/htan-skill/portal.json`.
 
 | Setting | Value |
 |---|---|
-| Host | `REDACTED_HOST` |
-| Port | `8443` (HTTPS) |
-| User | `REDACTED_USER` |
-| Password | `REDACTED_PASSWORD` |
-| Database | `htan_2026_01_08` (changes with portal releases) |
-| Protocol | HTTP POST with Basic Auth |
+| Config file | `~/.config/htan-skill/portal.json` |
+| Protocol | HTTP POST with Basic Auth over HTTPS (port 8443) |
+| Database | Auto-discovered (changes with portal releases) |
 
-### HTTP Interface
+### HTTP Interface (after setup)
 
 ```bash
-curl -s "https://REDACTED_HOST:8443/" \
-  -u "REDACTED_USER:REDACTED_PASSWORD" \
+# Read credentials from your local config
+CONFIG=~/.config/htan-skill/portal.json
+HOST=$(python3 -c "import json; print(json.load(open('$CONFIG'))['host'])")
+USER=$(python3 -c "import json; print(json.load(open('$CONFIG'))['user'])")
+PASS=$(python3 -c "import json; print(json.load(open('$CONFIG'))['password'])")
+
+curl -s "https://$HOST:8443/" \
+  -u "$USER:$PASS" \
   --data-urlencode "query=SELECT count() FROM files" \
-  --data-urlencode "default_format=JSONEachRow" \
-  --data-urlencode "database=htan_2026_01_08"
+  --data-urlencode "default_format=JSONEachRow"
 ```
 
 ## Database Schema
@@ -303,8 +314,8 @@ ClickHouse SQL is mostly standard but has some differences from BigQuery/standar
 
 | Feature | Portal (ClickHouse) | BigQuery (ISB-CGC) |
 |---|---|---|
-| **Auth required** | None (public read-only) | Google Cloud credentials + billing project |
-| **Setup complexity** | Zero — works immediately | `gcloud auth` + project setup |
+| **Auth required** | One-time setup via `init-portal` (Synapse team gated) | Google Cloud credentials + billing project |
+| **Setup complexity** | One-time `init-portal` (Synapse login + team join) | `gcloud auth` + project setup |
 | **Dependencies** | None (stdlib urllib) | `google-cloud-bigquery`, `pandas` |
 | **Clinical depth** | Basic (7 tables) | Deep (408+ tables, multi-tier clinical) |
 | **File download info** | Included (synapseId, DRS URI in same table) | Requires separate file mapping step |
@@ -329,9 +340,9 @@ ClickHouse SQL is mostly standard but has some differences from BigQuery/standar
 
 ## Limitations and Risks
 
-1. **No SLA**: Public credentials could be rotated without notice
+1. **No SLA**: Credentials could be rotated without notice — re-run `init-portal --force` if connectivity fails
 2. **Database name changes**: The database name includes a date (e.g., `htan_2026_01_08`) and changes with portal releases. The script auto-discovers the latest database.
-3. **Read-only**: The `REDACTED_USER` account has SELECT-only permissions
+3. **Read-only**: The portal account has SELECT-only permissions
 4. **Simpler schema**: Fewer tables than BigQuery — no assay-level metadata (cell counts, library methods, etc.)
 5. **Rate limits**: Unknown public rate limits — use reasonable query patterns
 6. **JSON column**: DRS URIs are nested in a JSON string column (`viewers`), requiring `JSONExtractString()` for extraction
