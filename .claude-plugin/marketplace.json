@@ -17,7 +17,7 @@
       "license": "MIT",
       "category": "life-sciences",
       "tags": ["htan", "cancer", "bioinformatics", "genomics", "nci"],
-      "strict": false,
+      "strict": true,
       "skills": ["./skills/portal"]
     }
   ]
