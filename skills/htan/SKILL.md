@@ -7,6 +7,26 @@ description: Access HTAN (Human Tumor Atlas Network) data — query the portal d
 
 Tools for accessing data from the **Human Tumor Atlas Network (HTAN)**, an NCI Cancer Moonshot initiative constructing 3D atlases of human cancers from precancerous lesions to advanced disease.
 
+## First-Run Check
+
+**Before doing anything else**, run the setup checker to see what's configured:
+
+```bash
+python3 scripts/htan_setup.py --check
+```
+
+If the portal is not configured (or this is the first time using the skill), tell the user they need to run the interactive setup wizard. The wizard requires the user to run it themselves in their terminal because it involves interactive Synapse authentication:
+
+```
+python3 scripts/htan_setup.py init
+```
+
+The wizard walks through: Synapse auth, portal credential download (requires [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team membership), BigQuery, and Gen3/CRDC. Each step detects what's already configured and skips if satisfied. Portal credentials are required for most operations; PubMed search and data model queries work without any credentials.
+
+Once setup is complete, proceed to the user's request.
+
+---
+
 ## Quick Reference
 
 | User Intent | Command |
