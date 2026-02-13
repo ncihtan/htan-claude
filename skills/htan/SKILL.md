@@ -7,29 +7,30 @@ description: Access HTAN (Human Tumor Atlas Network) data — query the portal d
 
 Tools for accessing data from the **Human Tumor Atlas Network (HTAN)**, an NCI Cancer Moonshot initiative constructing 3D atlases of human cancers from precancerous lesions to advanced disease.
 
-## First-Run Check
+## IMPORTANT: Do Not Run Setup Scripts
 
-**Before doing anything else**, check if the portal credentials are configured by testing whether the config file exists:
+**NEVER run `htan_setup.py init`, `htan_setup.py init-portal`, `htan_setup.py --check`, or any setup/init command via the Bash tool.** These require interactive Synapse login and will fail or create broken state when run through Claude.
+
+Instead, **before doing anything else**, check if the portal is configured:
 
 ```bash
-test -f ~/.config/htan-skill/portal.json && echo "Portal configured" || echo "Portal NOT configured"
+test -f ~/.config/htan-skill/portal.json && echo "CONFIGURED" || echo "NOT_CONFIGURED"
 ```
 
-If the portal is **not configured**, stop and tell the user:
+- If `CONFIGURED`: proceed to the user's request using the scripts below.
+- If `NOT_CONFIGURED`: **stop and tell the user** they need to run setup in their own terminal first. Give them this message:
 
-> The HTAN skill needs to be set up first. Please run this command **in your own terminal** (not here — it requires interactive input):
->
-> ```
-> python3 /path/to/skills/htan/scripts/htan_setup.py init
-> ```
->
-> The wizard will walk you through Synapse authentication and downloading portal credentials. You'll need to be a member of the [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) Synapse team. Once setup is complete, come back and invoke `/htan` again.
+  "The HTAN portal credentials aren't set up yet. Please run this in your own terminal (it requires interactive Synapse login that can't work through Claude):"
 
-**Do not run `htan_setup.py init` via the Bash tool** — it requires interactive Synapse login that cannot work through Claude.
+  ```
+  python3 scripts/htan_setup.py init
+  ```
 
-PubMed search (`htan_pubmed.py`) and data model queries (`htan_data_model.py`) work without any credentials and can be used immediately.
+  "You'll need to join the [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) Synapse team first. Once setup is complete, come back and invoke `/htan` again."
 
-Once setup is confirmed, proceed to the user's request.
+**No-auth tools** — these work immediately without any setup:
+- `htan_pubmed.py` — PubMed search
+- `htan_data_model.py` — data model queries
 
 ---
 
@@ -37,8 +38,6 @@ Once setup is confirmed, proceed to the user's request.
 
 | User Intent | Command |
 |---|---|
-| **First-time setup (interactive wizard)** | `python3 scripts/htan_setup.py init` |
-| Set up portal credentials only | `python3 scripts/htan_setup.py init-portal` |
 | **Find files by organ/assay/atlas** | `python3 scripts/htan_portal.py files --organ Breast --assay "scRNA-seq"` |
 | **Get download info for a file ID** | `python3 scripts/htan_portal.py files --data-file-id HTA9_1_19512 --output json` |
 | **Query portal database directly** | `python3 scripts/htan_portal.py sql "SELECT ..."` |
@@ -56,25 +55,6 @@ Once setup is confirmed, proceed to the user's request.
 | Resolve file ID to download info (offline) | `python3 scripts/htan_file_mapping.py lookup HTAN_DATA_FILE_ID` |
 
 ---
-
-## 1. Setup and Authentication
-
-**First-time setup** — run the interactive wizard:
-
-```bash
-python3 scripts/htan_setup.py init
-```
-
-This walks you through environment setup, Synapse auth, portal credentials, BigQuery, and Gen3/CRDC. Each step detects what's already configured and skips if satisfied.
-
-```bash
-python3 scripts/htan_setup.py init --force          # Re-run all steps
-python3 scripts/htan_setup.py init --non-interactive # Skip prompts (CI/scripted)
-python3 scripts/htan_setup.py --check                # Check status only
-python3 scripts/htan_setup.py init-portal            # Portal credentials only
-```
-
-See `references/authentication_guide.md` for detailed setup instructions per service.
 
 ---
 
