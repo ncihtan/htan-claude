@@ -1,9 +1,7 @@
 {
-  "mcpServers": {
-    "htan-portal": {
-      "command": "uv",
-      "args": ["run", "${CLAUDE_PLUGIN_ROOT}/servers/htan_portal_server.py"],
-      "env": {}
-    }
+  "htan-portal": {
+    "command": "uv",
+    "args": ["run", "${CLAUDE_PLUGIN_ROOT}/servers/htan_portal_server.py"],
+    "env": {}
   }
 }
