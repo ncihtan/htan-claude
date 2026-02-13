@@ -5,7 +5,5 @@
   "author": {
     "name": "HTAN DCC"
   },
-  "license": "MIT",
-  "category": "life-sciences",
-  "tags": ["htan", "cancer", "bioinformatics", "genomics", "nci"]
+  "license": "MIT"
 }
