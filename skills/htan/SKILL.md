@@ -1,5 +1,5 @@
 ---
-name: portal
+name: htan
 description: Access HTAN (Human Tumor Atlas Network) data — query the portal database, download from Synapse and Gen3/CRDC, query metadata in BigQuery, and search HTAN publications on PubMed.
 ---
 

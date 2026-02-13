@@ -108,7 +108,7 @@ htan-skill/
 ├── LICENSE.txt
 ├── README.md
 └── skills/
-    └── portal/
+    └── htan/
         ├── SKILL.md                  # Skill definition (name, description, instructions)
         ├── scripts/
         │   ├── htan_portal_config.py # Shared config loader for portal credentials (stdlib only)
@@ -628,7 +628,7 @@ python3 scripts/htan_data_model.py deps "scRNA-seq Level 1"
 ## SKILL.md Guidelines
 
 The SKILL.md should:
-- Use `name: portal` as the skill name (invoked via `/htan:portal`)
+- Use `name: htan` as the skill name (invoked via `/htan`)
 - Description should mention: HTAN data access, portal ClickHouse, Synapse, Gen3/CRDC, BigQuery, and publication search
 - Body should explain the 6 capabilities and when to use each
 - Reference scripts for each operation

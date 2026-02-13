@@ -50,7 +50,7 @@ The portal and PubMed tools use only Python stdlib — no packages to install be
 
 ```bash
 # Invoke the skill
-/htan:portal
+/htan
 
 # Ask Claude to query the portal
 "List all scRNA-seq files from breast cancer in HTAN"
@@ -95,7 +95,7 @@ uv pip install synapseclient gen3 google-cloud-bigquery google-cloud-bigquery-st
 | **Gen3/CRDC** | Request dbGaP access for study `phs002371`, download credentials from the CRDC portal |
 | **BigQuery** | Run `gcloud auth application-default login` and set `GOOGLE_CLOUD_PROJECT` |
 
-See `skills/portal/references/authentication_guide.md` for detailed instructions.
+See `skills/htan/references/authentication_guide.md` for detailed instructions.
 
 ## Plugin Structure
 
@@ -105,7 +105,7 @@ htan-claude/
 │   ├── plugin.json             # Plugin manifest
 │   └── marketplace.json        # Marketplace catalog
 ├── skills/
-│   └── portal/                 # Auto-discovered skill → /htan:portal
+│   └── htan/                   # Auto-discovered skill → /htan
 │       ├── SKILL.md            # Skill definition (loaded by Claude Code)
 │       ├── scripts/
 │       │   ├── htan_portal_config.py  # Portal credential loader (stdlib)
