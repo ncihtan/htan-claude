@@ -3,14 +3,13 @@
 # requires-python = ">=3.10"
 # dependencies = [
 #     "mcp>=1.0",
-#     "synapseclient>=4.0",
 # ]
 # ///
 """HTAN Portal MCP Server.
 
-Runs on the host machine via stdio transport. Reads credentials from
-~/.config/htan-skill/portal.json. Auto-downloads credentials from Synapse
-if missing but ~/.synapseConfig exists.
+Runs on the host machine via stdio transport. Loads credentials using 3-tier
+resolution: env var > OS keychain > config file. Auto-downloads credentials
+from Synapse via stdlib HTTP if missing but Synapse auth is configured.
 
 Exposes HTAN portal ClickHouse queries as MCP tools for Cowork compatibility.
 The existing skill + scripts architecture is preserved for Claude Code users;
@@ -25,7 +24,6 @@ import logging
 import os
 import shutil
 import sys
-import tempfile
 
 from mcp.server.fastmcp import FastMCP
 
@@ -52,6 +50,9 @@ from htan_portal import (
 from htan_portal_config import (
     CONFIG_PATH,
     REQUIRED_KEYS,
+    load_portal_config,
+    ConfigError as PortalConfigError,
+    save_to_keychain,
 )
 
 logger = logging.getLogger("htan-portal-mcp")
@@ -78,36 +79,33 @@ _database = None
 
 
 def _load_portal_config_safe():
-    """Load portal config without sys.exit(). Returns dict or raises CredentialError."""
-    if not os.path.exists(CONFIG_PATH):
-        raise CredentialError(
-            f"Portal credentials not configured at {CONFIG_PATH}. "
-            "Run auto-setup or join: https://www.synapse.org/Team:3574960"
-        )
+    """Load portal config using 3-tier resolution. Returns dict or raises CredentialError."""
     try:
-        with open(CONFIG_PATH, "r") as f:
-            cfg = json.load(f)
-    except json.JSONDecodeError as e:
-        raise CredentialError(f"Invalid JSON in {CONFIG_PATH}: {e}")
-    except PermissionError:
-        raise CredentialError(f"Cannot read {CONFIG_PATH} — check file permissions")
-
-    missing = [k for k in REQUIRED_KEYS if k not in cfg]
-    if missing:
-        raise CredentialError(f"Config missing required keys: {', '.join(missing)}")
-    return cfg
+        return load_portal_config()
+    except PortalConfigError as e:
+        raise CredentialError(str(e))
 
 
 def _auto_setup_portal():
-    """Attempt to auto-download portal credentials from Synapse.
+    """Attempt to auto-download portal credentials from Synapse via stdlib HTTP.
 
-    Requires ~/.synapseConfig to exist. Downloads from Synapse entity
-    syn73720854 (gated behind Team:3574960 membership).
+    No synapseclient dependency. Uses Synapse REST API directly.
+    Requires ~/.synapseConfig or SYNAPSE_AUTH_TOKEN to exist.
+    Downloads from Synapse entity syn73720854 (gated behind Team:3574960 membership).
     """
-    has_synapse_env = bool(os.environ.get("SYNAPSE_AUTH_TOKEN"))
-    has_synapse_config = os.path.exists(SYNAPSE_CONFIG_PATH)
+    import configparser
+    import ssl
+    import urllib.error
+    import urllib.request
 
-    if not has_synapse_env and not has_synapse_config:
+    # Read Synapse auth token
+    token = os.environ.get("SYNAPSE_AUTH_TOKEN", "").strip()
+    if not token and os.path.exists(SYNAPSE_CONFIG_PATH):
+        config = configparser.ConfigParser()
+        config.read(SYNAPSE_CONFIG_PATH)
+        token = (config.get("authentication", "authtoken", fallback=None) or "").strip()
+
+    if not token:
         raise CredentialError(
             "Portal credentials not configured and no Synapse credentials found.\n"
             "Set up ~/.synapseConfig first:\n"
@@ -119,66 +117,97 @@ def _auto_setup_portal():
             "   authtoken = <your-token>"
         )
 
-    # Lazy import synapseclient (heavy dependency, only needed for auto-setup)
-    try:
-        import synapseclient
-    except ImportError:
-        raise CredentialError(
-            "synapseclient not available for auto-setup. "
-            "Install it or manually configure portal credentials."
+    def _ssl_ctx():
+        try:
+            import certifi
+            return ssl.create_default_context(cafile=certifi.where())
+        except ImportError:
+            return ssl.create_default_context()
+
+    def _synapse_get(path, endpoint="https://repo-prod.prod.sagebase.org"):
+        req = urllib.request.Request(
+            f"{endpoint}{path}",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
         )
+        with urllib.request.urlopen(req, timeout=30, context=_ssl_ctx()) as resp:
+            return json.loads(resp.read())
 
-    logger.info("Auto-setup: downloading portal credentials from Synapse...")
+    def _synapse_post(path, body, endpoint="https://repo-prod.prod.sagebase.org"):
+        req = urllib.request.Request(
+            f"{endpoint}{path}",
+            data=json.dumps(body).encode(),
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=30, context=_ssl_ctx()) as resp:
+            return json.loads(resp.read())
 
+    logger.info("Auto-setup: downloading portal credentials from Synapse (stdlib)...")
+
+    # Check team membership and auto-join
     try:
-        syn = synapseclient.Synapse()
-        syn.login(silent=True)
-    except Exception as e:
-        raise CredentialError(f"Synapse login failed: {e}")
-
-    # Check team membership and auto-join if possible
-    try:
-        profile = syn.getUserProfile()
+        profile = _synapse_get("/repo/v1/userProfile")
         user_id = profile.get("ownerId", "")
         if user_id:
-            membership = syn.restGET(
-                f"/team/{SYNAPSE_TEAM_ID}/member/{user_id}/membershipStatus"
+            membership = _synapse_get(
+                f"/repo/v1/team/{SYNAPSE_TEAM_ID}/member/{user_id}/membershipStatus"
             )
-            is_member = membership.get("isMember", False)
-            can_join = membership.get("canJoin", False)
-
-            if not is_member and can_join:
+            if not membership.get("isMember", False) and membership.get("canJoin", False):
                 logger.info("Auto-joining HTAN Claude Skill Users team...")
                 try:
-                    syn.restPOST(
-                        "/membershipRequest",
-                        body=json.dumps({
-                            "teamId": SYNAPSE_TEAM_ID,
-                            "message": "Auto-join via HTAN MCP server",
-                        }),
-                    )
+                    _synapse_post("/repo/v1/membershipRequest", {
+                        "teamId": SYNAPSE_TEAM_ID,
+                        "message": "Auto-join via HTAN MCP server",
+                    })
                 except Exception as e:
                     logger.warning(f"Could not auto-join team: {e}")
-            elif not is_member:
-                logger.warning(
-                    "Not a team member. Join at: https://www.synapse.org/Team:3574960"
-                )
+            elif not membership.get("isMember", False):
+                logger.warning("Not a team member. Join at: https://www.synapse.org/Team:3574960")
     except Exception as e:
         logger.warning(f"Could not check team membership: {e}")
 
-    # Download credentials
+    # Get entity bundle -> file handle ID
     try:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            entity = syn.get(PORTAL_CREDENTIALS_SYNAPSE_ID, downloadLocation=tmpdir)
-            with open(entity.path, "r") as f:
-                creds = json.load(f)
-    except Exception as e:
-        error_str = str(e)
-        if "403" in error_str or "access" in error_str.lower():
+        bundle = _synapse_post(
+            f"/repo/v1/entity/{PORTAL_CREDENTIALS_SYNAPSE_ID}/bundle2",
+            {"includeEntity": True, "includeFileHandles": True},
+        )
+        fh_id = bundle["entity"]["dataFileHandleId"]
+    except urllib.error.HTTPError as e:
+        if e.code == 403:
             raise CredentialError(
                 "Access denied. Join the HTAN Claude Skill Users team first: "
                 "https://www.synapse.org/Team:3574960"
             )
+        raise CredentialError(f"Failed to get entity bundle: {e}")
+    except Exception as e:
+        raise CredentialError(f"Failed to get entity bundle: {e}")
+
+    # Get pre-signed download URL
+    try:
+        download_url = _synapse_get(
+            f"/file/v1/fileHandle/{fh_id}/url?redirect=false",
+            endpoint="https://file-prod.prod.sagebase.org",
+        )
+        if not isinstance(download_url, str):
+            download_url = str(download_url)
+    except urllib.error.HTTPError as e:
+        if e.code == 403:
+            raise CredentialError(
+                "Access denied. Join the HTAN Claude Skill Users team first: "
+                "https://www.synapse.org/Team:3574960"
+            )
+        raise CredentialError(f"Failed to get download URL: {e}")
+
+    # Download credentials
+    try:
+        req = urllib.request.Request(download_url)
+        with urllib.request.urlopen(req, timeout=30, context=_ssl_ctx()) as resp:
+            creds = json.loads(resp.read())
+    except Exception as e:
         raise CredentialError(f"Failed to download portal credentials: {e}")
 
     # Validate
@@ -186,7 +215,12 @@ def _auto_setup_portal():
     if missing:
         raise CredentialError(f"Downloaded credentials missing keys: {', '.join(missing)}")
 
-    # Save
+    # Store in keychain + config file
+    try:
+        save_to_keychain(creds)
+    except Exception:
+        pass
+
     config_dir = os.path.dirname(CONFIG_PATH)
     os.makedirs(config_dir, exist_ok=True)
     with open(CONFIG_PATH, "w") as f:

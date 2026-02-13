@@ -15,9 +15,9 @@ Tools for accessing data from the **Human Tumor Atlas Network (HTAN)**, an NCI C
 
 **NEVER create a virtual environment or install packages inside the plugin cache directory.** Venvs go in the user's working directory.
 
-## MCP Tools (Cowork Mode)
+## MCP Tools (Local Claude Code)
 
-When running in Cowork mode, the HTAN portal MCP server provides direct tool access from the host machine (where credentials live). Prefer these over Bash script invocation when available:
+The HTAN portal MCP server (`servers/htan_portal_server.py`) provides direct tool access for **local Claude Code** sessions. When these tools are available, prefer them over Bash script invocation:
 
 | MCP Tool | Equivalent Script Command |
 |----------|--------------------------|
@@ -32,7 +32,14 @@ When running in Cowork mode, the HTAN portal MCP server provides direct tool acc
 
 The MCP server auto-downloads portal credentials from Synapse on first use if `~/.synapseConfig` is configured. No manual setup needed.
 
-**No-auth tools** (PubMed, data model) still run via Bash as they need no credentials.
+**Cowork mode limitation**: Plugin-provided MCP servers do **not** currently appear in Cowork sessions due to a platform limitation ([#20377](https://github.com/anthropics/claude-code/issues/20377), [#15308](https://github.com/anthropics/claude-code/issues/15308)). In Cowork, use the Bash script equivalents instead. If you need MCP tools in Cowork, you can try adding the server at user scope on the host machine:
+
+```bash
+claude mcp add --scope user --transport stdio htan-portal \
+  -- uv run /path/to/htan-skill/skills/htan/servers/htan_portal_server.py
+```
+
+**No-auth tools** (PubMed, data model) work in both local and Cowork modes via Bash — they need no credentials.
 
 ---
 
@@ -50,88 +57,22 @@ Then run scripts as:
 python3 "$HTAN_DIR/scripts/htan_portal.py" tables
 ```
 
-## First-Run Setup
+## Setup
 
-On first invocation (or when services are not configured), follow this flow **in order**.
+Run `/htan:setup` to check credential status and configure access.
+To check status only: `/htan:setup check`
 
-### Step 1: Check status
-
-```bash
-python3 "$HTAN_DIR/scripts/htan_quicksetup.py" check
-```
-
-This outputs JSON with the status of each service. Parse it and present a dashboard to the user:
-
-```
-HTAN Skill — Setup Status
-
-✅ Synapse credentials    ~/.synapseConfig found
-❌ Portal credentials     Not configured — requires setup
-⚠️  Gen3/CRDC              Optional — needed for controlled-access downloads
-⚠️  BigQuery               Optional — needed for advanced metadata queries
-```
-
-### Step 2: Synapse auth (required)
-
-If `status.synapse.configured` is `false`: **stop and tell the user** they need to create Synapse credentials. Do NOT try to create the file yourself. Show them:
-
-> **Synapse credentials are required for HTAN setup.** Please do the following:
->
-> 1. Create a free account at https://www.synapse.org
-> 2. Go to **Account Settings > Personal Access Tokens**: https://www.synapse.org/#!PersonalAccessTokens:
-> 3. Create a token with **view** and **download** permissions
-> 4. Create the file `~/.synapseConfig`:
->    ```
->    [authentication]
->    authtoken = <your-token-here>
->    ```
->
-> Once done, invoke `/htan` again to continue setup.
-
-**Do not proceed past this step** if Synapse is not configured. The remaining steps depend on it.
-
-### Step 3: Create venv and install dependencies
-
-If there is no `.venv` in the user's current working directory, create one. This is needed before the portal step (which requires `synapseclient`).
-
-```bash
-python3 "$HTAN_DIR/scripts/htan_quicksetup.py" venv
-```
-
-This creates `.venv/` in the current working directory with all HTAN dependencies. **Not** in the plugin cache.
-
-### Step 4: Auto-configure portal credentials
-
-If `status.portal.configured` is `false`, download credentials from Synapse. Must use the venv Python since it requires `synapseclient`:
-
-```bash
-.venv/bin/python "$HTAN_DIR/scripts/htan_quicksetup.py" portal
-```
-
-This will:
-- Log in to Synapse using `~/.synapseConfig`
-- Auto-join the HTAN Claude Skill Users team if eligible
-- Download and save credentials to `~/.config/htan-skill/portal.json`
-- Verify connectivity
-
-If it fails with an access error, tell the user to join the team at https://www.synapse.org/Team:3574960.
-
-### Step 5: Show final status and optional setup
-
-After steps 1-4, present the updated status. For optional items, show instructions:
-
-- **Gen3/CRDC** (controlled-access data): Requires dbGaP authorization for study `phs002371` — apply at https://dbgap.ncbi.nlm.nih.gov/
-- **BigQuery** (advanced metadata queries): Run `gcloud auth application-default login` in your terminal
-
-### When setup is already complete
-
-If Step 1 shows synapse + portal are both configured, **skip all setup steps** and proceed directly to the user's request. No need to create a venv for portal/pubmed/data-model queries (they use stdlib only).
-
-Only create a venv if the user needs Synapse downloads, Gen3 downloads, or BigQuery queries.
+**Credential storage**:
+- **Local Claude Code**: Portal credentials stored in OS Keychain (encrypted at rest)
+- **Cowork**: Set `SYNAPSE_AUTH_TOKEN` and `HTAN_PORTAL_CREDENTIALS` (JSON) in project environment variables
+- Backward compat: `~/.config/htan-skill/portal.json` config file also works
 
 **No-auth tools** (always work, no setup needed):
 - `htan_pubmed.py` — PubMed search (stdlib only)
-- `htan_data_model.py` — data model queries (stdlib only, fetches from GitHub)
+- `htan_data_model.py` — data model queries (stdlib only)
+
+Only create a venv if the user needs Synapse downloads, Gen3 downloads, or BigQuery queries.
+Portal setup and all portal queries are stdlib-only (no venv needed).
 
 ---
 

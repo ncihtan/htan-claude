@@ -39,15 +39,22 @@ Then reference the skill directory in your Claude Code configuration.
 
 ## Setup
 
-After installing, run the interactive setup wizard:
+After installing, run the setup command:
 
-```bash
-python3 scripts/htan_setup.py init
+```
+/htan:setup
 ```
 
-This walks you through portal credentials (requires [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team membership), Synapse auth, BigQuery, and Gen3/CRDC setup. Each step detects what's already configured and skips if satisfied.
+This checks credential status and auto-configures portal access. Portal setup uses stdlib HTTP only — no venv or `synapseclient` needed.
 
-The portal and PubMed tools use only Python stdlib — no packages to install beyond Python 3.11+.
+To check status only: `/htan:setup check`
+
+**Credential storage** (3-tier resolution):
+- **Environment variable**: `HTAN_PORTAL_CREDENTIALS` (JSON string) — best for Cowork
+- **OS Keychain**: macOS Keychain / Linux `secret-tool` — best for local (encrypted at rest)
+- **Config file**: `~/.config/htan-skill/portal.json` — backward compatible
+
+Portal queries, PubMed search, and data model queries use only Python stdlib — no packages to install beyond Python 3.11+.
 
 ## Quick Start
 
@@ -93,7 +100,7 @@ uv pip install synapseclient gen3 google-cloud-bigquery google-cloud-bigquery-st
 
 | Service | How to Set Up |
 |---|---|
-| **Portal** | Join [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team, then run `python3 scripts/htan_setup.py init-portal` |
+| **Portal** | Join [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team, then run `/htan:setup` |
 | **Synapse** | Get a Personal Access Token from synapse.org, set `SYNAPSE_AUTH_TOKEN` or configure `~/.synapseConfig` |
 | **Gen3/CRDC** | Request dbGaP access for study `phs002371`, download credentials from the CRDC portal |
 | **BigQuery** | Run `gcloud auth application-default login` and set `GOOGLE_CLOUD_PROJECT` |
@@ -110,6 +117,8 @@ htan-claude/
 ├── skills/
 │   └── htan/                   # Auto-discovered skill → /htan
 │       ├── SKILL.md            # Skill definition (loaded by Claude Code)
+│       ├── commands/
+│       │   └── setup.md            # /htan:setup command
 │       ├── scripts/
 │       │   ├── htan_portal_config.py  # Portal credential loader (stdlib)
 │       │   ├── htan_portal.py         # Portal ClickHouse queries (stdlib)
@@ -119,6 +128,7 @@ htan-claude/
 │       │   ├── htan_synapse.py        # Synapse downloads
 │       │   ├── htan_gen3.py           # Gen3/CRDC downloads
 │       │   ├── htan_bigquery.py       # BigQuery metadata queries
+│       │   ├── htan_quicksetup.py      # Claude-safe setup (JSON output, stdlib)
 │       │   └── htan_setup.py          # Setup wizard and auth checker
 │       └── references/
 │           ├── clickhouse_portal.md
