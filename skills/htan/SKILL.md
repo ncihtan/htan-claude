@@ -15,6 +15,27 @@ Tools for accessing data from the **Human Tumor Atlas Network (HTAN)**, an NCI C
 
 **NEVER create a virtual environment or install packages inside the plugin cache directory.** Venvs go in the user's working directory.
 
+## MCP Tools (Cowork Mode)
+
+When running in Cowork mode, the HTAN portal MCP server provides direct tool access from the host machine (where credentials live). Prefer these over Bash script invocation when available:
+
+| MCP Tool | Equivalent Script Command |
+|----------|--------------------------|
+| `htan_portal_files` | `htan_portal.py files` |
+| `htan_portal_query` | `htan_portal.py sql` |
+| `htan_portal_summary` | `htan_portal.py summary` |
+| `htan_portal_tables` | `htan_portal.py tables` |
+| `htan_portal_describe` | `htan_portal.py describe` |
+| `htan_portal_clinical` | `htan_portal.py demographics/diagnosis/cases/specimen` |
+| `htan_portal_manifest` | `htan_portal.py manifest` |
+| `htan_setup_status` | `htan_quicksetup.py check` |
+
+The MCP server auto-downloads portal credentials from Synapse on first use if `~/.synapseConfig` is configured. No manual setup needed.
+
+**No-auth tools** (PubMed, data model) still run via Bash as they need no credentials.
+
+---
+
 ## Running Scripts
 
 Set this variable once at the start of the session and use it for ALL script invocations:

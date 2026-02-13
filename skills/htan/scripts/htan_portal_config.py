@@ -17,6 +17,11 @@ CONFIG_PATH = os.path.join(CONFIG_DIR, "portal.json")
 REQUIRED_KEYS = ("host", "port", "user", "password")
 
 
+class ConfigError(Exception):
+    """Portal configuration error — credentials missing or invalid."""
+    pass
+
+
 def load_portal_config(config_path=None):
     """Load portal credentials from the config file.
 
@@ -32,30 +37,31 @@ def load_portal_config(config_path=None):
     path = config_path or CONFIG_PATH
 
     if not os.path.exists(path):
-        print("Error: Portal credentials not configured.", file=sys.stderr)
-        print(f"Expected config at: {path}", file=sys.stderr)
-        print("", file=sys.stderr)
-        print("To set up portal access:", file=sys.stderr)
-        print("  1. Join the HTAN Claude Skill Users team: https://www.synapse.org/Team:3574960", file=sys.stderr)
-        print("  2. Run: python3 scripts/htan_setup.py init-portal", file=sys.stderr)
-        sys.exit(1)
+        raise ConfigError(
+            "Portal credentials not configured.\n"
+            f"Expected config at: {path}\n\n"
+            "To set up portal access:\n"
+            "  1. Join the HTAN Claude Skill Users team: https://www.synapse.org/Team:3574960\n"
+            "  2. Run: python3 scripts/htan_setup.py init-portal"
+        )
 
     try:
         with open(path, "r") as f:
             cfg = json.load(f)
     except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON in {path}: {e}", file=sys.stderr)
-        print("Re-run: python3 scripts/htan_setup.py init-portal --force", file=sys.stderr)
-        sys.exit(1)
+        raise ConfigError(
+            f"Invalid JSON in {path}: {e}\n"
+            "Re-run: python3 scripts/htan_setup.py init-portal --force"
+        )
     except PermissionError:
-        print(f"Error: Cannot read {path} — check file permissions.", file=sys.stderr)
-        sys.exit(1)
+        raise ConfigError(f"Cannot read {path} — check file permissions.")
 
     missing = [k for k in REQUIRED_KEYS if k not in cfg]
     if missing:
-        print(f"Error: Config file {path} missing required keys: {', '.join(missing)}", file=sys.stderr)
-        print("Re-run: python3 scripts/htan_setup.py init-portal --force", file=sys.stderr)
-        sys.exit(1)
+        raise ConfigError(
+            f"Config file {path} missing required keys: {', '.join(missing)}\n"
+            "Re-run: python3 scripts/htan_setup.py init-portal --force"
+        )
 
     return cfg
 

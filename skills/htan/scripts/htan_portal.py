@@ -40,8 +40,11 @@ def _cfg():
     global _portal_cfg
     if _portal_cfg is None:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        from htan_portal_config import load_portal_config
-        _portal_cfg = load_portal_config()
+        from htan_portal_config import load_portal_config, ConfigError
+        try:
+            _portal_cfg = load_portal_config()
+        except ConfigError as e:
+            raise PortalError(str(e))
     return _portal_cfg
 
 
@@ -66,6 +69,13 @@ BLOCKED_SQL_KEYWORDS = [
 ALLOWED_SQL_STARTS = ["SELECT", "WITH", "SHOW", "DESCRIBE", "EXPLAIN", "EXISTS"]
 
 TABLE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_]+$")
+
+
+class PortalError(Exception):
+    """Error from HTAN portal operations (query failures, connection issues)."""
+    def __init__(self, message, hints=None):
+        super().__init__(message)
+        self.hints = hints or []
 
 
 def normalize_sql(sql):
@@ -99,10 +109,9 @@ def validate_sql_safety(sql):
 
 
 def validate_table_name(name):
-    """Validate table name contains only safe characters."""
+    """Validate table name contains only safe characters. Raises ValueError."""
     if not TABLE_NAME_PATTERN.match(name):
-        print(f"Error: Invalid table name '{name}'. Use only alphanumeric and underscores.", file=sys.stderr)
-        sys.exit(1)
+        raise ValueError(f"Invalid table name '{name}'. Use only alphanumeric and underscores.")
     return name
 
 
@@ -121,18 +130,22 @@ def ensure_limit(sql, limit=DEFAULT_LIMIT):
     return sql
 
 
-def discover_database():
+def discover_database(config=None):
     """Discover the latest HTAN database by querying SHOW DATABASES.
 
     Falls back to the config file's default_database if discovery fails.
+
+    Args:
+        config: Portal config dict. If None, loads from default config file.
     """
+    cfg = config if config is not None else _cfg()
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from htan_portal_config import get_default_database
-    config_default = get_default_database(_cfg())
+    config_default = get_default_database(cfg)
 
     try:
         # Query without specifying a database
-        resp = clickhouse_query("SHOW DATABASES LIKE 'htan_%'", fmt="TabSeparated", database="")
+        resp = clickhouse_query("SHOW DATABASES LIKE 'htan_%'", fmt="TabSeparated", database="", config=cfg)
         if not resp.strip():
             return config_default
 
@@ -150,7 +163,7 @@ def discover_database():
     return config_default
 
 
-def clickhouse_query(sql, fmt="JSONEachRow", database=None, timeout=60):
+def clickhouse_query(sql, fmt="JSONEachRow", database=None, timeout=60, config=None):
     """Execute a read-only SQL query against the ClickHouse HTTP interface.
 
     Args:
@@ -158,16 +171,17 @@ def clickhouse_query(sql, fmt="JSONEachRow", database=None, timeout=60):
         fmt: ClickHouse output format (JSONEachRow, TabSeparated, CSV, etc.)
         database: Database name to query against (None = use config default)
         timeout: HTTP request timeout in seconds (default: 60)
+        config: Portal config dict. If None, loads from default config file.
 
     Returns:
         Raw response body as string.
 
     Raises:
-        SystemExit on HTTP or connection errors.
+        PortalError on HTTP, connection, or timeout errors.
     """
     sql = normalize_sql(sql)
 
-    cfg = _cfg()
+    cfg = config if config is not None else _cfg()
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from htan_portal_config import get_clickhouse_url
 
@@ -216,30 +230,28 @@ def clickhouse_query(sql, fmt="JSONEachRow", database=None, timeout=60):
                 clean_msg = err_json.get("exception", clean_msg)
             except (json.JSONDecodeError, KeyError):
                 pass
-        print(f"Error: ClickHouse HTTP {e.code}: {clean_msg}", file=sys.stderr)
         # Provide actionable hints for common errors
         hints = []
         if "Unrecognized token" in clean_msg and "!=" in clean_msg:
-            hints.append("Hint: Use <> instead of != for not-equal comparisons in ClickHouse")
+            hints.append("Use <> instead of != for not-equal comparisons in ClickHouse")
         if "UNKNOWN_IDENTIFIER" in clean_msg or "Missing columns" in clean_msg:
-            hints.append("Hint: Run 'describe <table>' to see available column names")
+            hints.append("Run 'describe <table>' to see available column names")
         if "CANNOT_PARSE_TEXT" in clean_msg or "CANNOT_PARSE_INPUT" in clean_msg:
-            hints.append("Hint: Use toInt32OrNull() or toFloat64OrNull() for columns with non-numeric values (e.g., DaystoBirth, AgeatDiagnosis)")
+            hints.append("Use toInt32OrNull() or toFloat64OrNull() for columns with non-numeric values (e.g., DaystoBirth, AgeatDiagnosis)")
         if "Array" in clean_msg and ("ILLEGAL_TYPE" in clean_msg or "argument of function" in clean_msg):
-            hints.append("Hint: Use arrayExists() or arrayJoin() for Array(String) columns like organType, Gender, Race, PrimaryDiagnosis")
-        for hint in hints:
-            print(hint, file=sys.stderr)
-        sys.exit(1)
+            hints.append("Use arrayExists() or arrayJoin() for Array(String) columns like organType, Gender, Race, PrimaryDiagnosis")
+        raise PortalError(f"ClickHouse HTTP {e.code}: {clean_msg}", hints=hints)
     except urllib.error.URLError as e:
-        print(f"Error: Could not connect to HTAN portal ClickHouse: {e.reason}", file=sys.stderr)
-        print("The portal endpoint may be temporarily unavailable.", file=sys.stderr)
-        sys.exit(1)
+        raise PortalError(
+            f"Could not connect to HTAN portal ClickHouse: {e.reason}\n"
+            "The portal endpoint may be temporarily unavailable."
+        )
     except TimeoutError:
-        print(f"Error: Query timed out after {timeout}s. Try a simpler query or add a LIMIT clause.", file=sys.stderr)
-        sys.exit(1)
+        raise PortalError(f"Query timed out after {timeout}s. Try a simpler query or add a LIMIT clause.")
+    except PortalError:
+        raise
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        raise PortalError(str(e))
 
 
 def parse_json_rows(response_text):
@@ -265,8 +277,7 @@ def parse_json_rows(response_text):
     # If we got no valid rows but did get non-JSON text, it's likely a ClickHouse error
     if not rows and error_lines:
         error_text = "\n".join(error_lines[:5])  # Show first 5 lines
-        print(f"Error: ClickHouse returned non-JSON response:\n{error_text}", file=sys.stderr)
-        sys.exit(1)
+        raise PortalError(f"ClickHouse returned non-JSON response:\n{error_text}")
 
     # If we got some rows but also some error lines, warn but continue
     if error_lines:
@@ -574,9 +585,7 @@ def cmd_sql(args):
 
     safe, reason = validate_sql_safety(sql)
     if not safe:
-        print(f"Error: {reason}", file=sys.stderr)
-        print("Only read-only queries (SELECT, WITH, SHOW, DESCRIBE) are allowed.", file=sys.stderr)
-        sys.exit(1)
+        raise PortalError(f"{reason}\nOnly read-only queries (SELECT, WITH, SHOW, DESCRIBE) are allowed.")
 
     no_limit = getattr(args, "no_limit", False)
     limit = args.limit if hasattr(args, "limit") else SQL_DEFAULT_LIMIT
@@ -688,7 +697,7 @@ def cmd_summary(args):
         try:
             resp = clickhouse_query(sql, database=database)
             results[label] = parse_json_rows(resp)
-        except SystemExit:
+        except PortalError:
             results[label] = []
 
     # Format output
@@ -925,7 +934,17 @@ def main():
         "describe": cmd_describe,
         "manifest": cmd_manifest,
     }[args.command]
-    func(args)
+
+    try:
+        func(args)
+    except PortalError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        for hint in e.hints:
+            print(f"Hint: {hint}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

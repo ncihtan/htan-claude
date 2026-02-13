@@ -1,9 +1,16 @@
 {
   "name": "htan",
   "description": "Access HTAN data — query the portal database, download from Synapse and Gen3/CRDC, query metadata in BigQuery, and search publications on PubMed",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "HTAN DCC"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "mcpServers": {
+    "htan-portal": {
+      "command": "uv",
+      "args": ["run", "${CLAUDE_PLUGIN_ROOT}/servers/htan_portal_server.py"],
+      "env": {}
+    }
+  }
 }
