@@ -13,4 +13,4 @@ Optional modules (require extras):
     htan.download.gen3   — Gen3/CRDC controlled-access  (pip install htan[gen3])
 """
 
-__version__ = "0.2.0"
+__version__ = "0.1.0"
