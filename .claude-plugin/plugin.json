@@ -5,6 +5,5 @@
   "author": {
     "name": "HTAN DCC"
   },
-  "license": "MIT",
-  "mcpServers": "./.mcp.json"
+  "license": "MIT"
 }
