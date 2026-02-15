@@ -11,13 +11,13 @@ The core functionality lives in the `htan` pip-installable package (`src/htan/`)
 | Module | Source | Notes |
 |---|---|---|
 | `htan.config` | `src/htan/config.py` | 3-tier credential resolution (env > keychain > config file) |
-| `htan.query.portal` | `src/htan/query/portal.py` | Portal ClickHouse queries, `PortalClient` class (stdlib only) |
-| `htan.query.bq` | `src/htan/query/bq.py` | BigQuery queries, `BigQueryClient` class (needs `htan[bigquery]`) |
-| `htan.download.synapse` | `src/htan/download/synapse.py` | Synapse downloads (needs `htan[synapse]`) |
-| `htan.download.gen3` | `src/htan/download/gen3.py` | Gen3/CRDC DRS downloads (needs `htan[gen3]`) |
-| `htan.pubs` | `src/htan/pubs.py` | PubMed search (stdlib only) |
-| `htan.model` | `src/htan/model.py` | HTAN data model queries, `DataModel` class (stdlib only) |
-| `htan.files` | `src/htan/files.py` | File ID to download coordinate mapping (stdlib only) |
+| `htan.query.portal` | `src/htan/query/portal.py` | Portal ClickHouse queries, `PortalClient` class |
+| `htan.query.bq` | `src/htan/query/bq.py` | BigQuery queries, `BigQueryClient` class |
+| `htan.download.synapse` | `src/htan/download/synapse.py` | Synapse downloads |
+| `htan.download.gen3` | `src/htan/download/gen3.py` | Gen3/CRDC DRS downloads |
+| `htan.pubs` | `src/htan/pubs.py` | PubMed search |
+| `htan.model` | `src/htan/model.py` | HTAN data model queries, `DataModel` class |
+| `htan.files` | `src/htan/files.py` | File ID to download coordinate mapping |
 | `htan.cli` | `src/htan/cli.py` | Unified CLI entry point (`htan` command) |
 
 ### What Still Needs Live Testing
@@ -36,7 +36,7 @@ The project uses a **uv virtual environment** and a `pyproject.toml`-based packa
 All Python dependencies **must** be managed with `uv`. Never use `pip`, `pip-tools`, `poetry`, or `conda` for dependency tasks.
 
 - **Install the package**: `uv pip install -e ".[dev]"` (editable mode with dev deps)
-- **Install all extras**: `uv pip install -e ".[all,dev]"`
+- **Install with dev deps**: `uv pip install -e ".[dev]"`
 - **Run CLI**: `uv run htan <command>` or just `htan <command>` after install
 - **Run tests**: `uv run pytest tests/`
 - **Run PyPI tools directly**: `uvx ruff`, `uvx pytest`
@@ -46,15 +46,11 @@ When executing any Python code in this project, **always use `uv run`** instead 
 
 ### Package Dependencies (pyproject.toml)
 
-Core package is stdlib-only. Optional extras for platform-specific features:
+All platform dependencies are included by default:
 
 ```bash
-pip install htan              # Core: portal, pubs, model, files (stdlib only)
-pip install htan[synapse]     # + Synapse downloads
-pip install htan[gen3]        # + Gen3/CRDC downloads
-pip install htan[bigquery]    # + BigQuery queries
-pip install htan[all]         # All of the above
-pip install htan[dev]         # + pytest, ruff
+pip install htan              # Everything: portal, Synapse, Gen3, BigQuery, pubs, model
+pip install htan[dev]         # + pytest, ruff (for development)
 ```
 
 ## Credential Security
@@ -82,14 +78,14 @@ htan-skill/
 │       ├── cli.py                    # Unified CLI: `htan <command>`
 │       ├── config.py                 # Credential management (3-tier: env > keychain > file)
 │       ├── query/
-│       │   ├── portal.py             # Portal ClickHouse queries (stdlib only)
-│       │   └── bq.py                 # BigQuery queries (needs htan[bigquery])
+│       │   ├── portal.py             # Portal ClickHouse queries
+│       │   └── bq.py                 # BigQuery queries
 │       ├── download/
-│       │   ├── synapse.py            # Synapse downloads (needs htan[synapse])
-│       │   └── gen3.py               # Gen3/CRDC DRS downloads (needs htan[gen3])
-│       ├── pubs.py                   # PubMed publication search (stdlib only)
-│       ├── model.py                  # HTAN data model queries (stdlib only)
-│       └── files.py                  # File ID → download coordinate mapping (stdlib only)
+│       │   ├── synapse.py            # Synapse downloads
+│       │   └── gen3.py               # Gen3/CRDC DRS downloads
+│       ├── pubs.py                   # PubMed publication search
+│       ├── model.py                  # HTAN data model queries
+│       └── files.py                  # File ID → download coordinate mapping
 ├── tests/                            # Package tests (pytest)
 ├── skills/
 │   └── htan/
@@ -104,16 +100,7 @@ htan-skill/
 
 ## Core Dependencies
 
-Dependencies are defined in `pyproject.toml`. Core package is stdlib-only; optional extras add platform support:
-
-| Extra | Dependencies | Purpose |
-|---|---|---|
-| (core) | stdlib only | Portal queries, PubMed, data model, file mapping |
-| `synapse` | `synapseclient>=4.0` | Synapse open-access downloads |
-| `gen3` | `gen3>=4.27` | Gen3/CRDC controlled-access downloads |
-| `bigquery` | `google-cloud-bigquery`, `pandas`, etc. | ISB-CGC BigQuery queries |
-| `all` | synapse + gen3 + bigquery | All platform extras |
-| `dev` | `pytest`, `ruff` | Development tools |
+All dependencies are included by default (`pip install htan`). The `[dev]` extra adds `pytest` and `ruff`.
 
 ## Data Access Tiers
 

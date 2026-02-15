@@ -16,35 +16,45 @@ A Claude Code plugin for working with the **Human Tumor Atlas Network (HTAN)** �
 | **Gen3/CRDC download** | Gen3 credentials + dbGaP | Download controlled-access data (raw sequencing) |
 | **BigQuery metadata** | Google Cloud ADC | Query HTAN metadata tables in ISB-CGC |
 
-## Getting Started
+## Install (Users)
 
-### 1. Set up the environment
+### 1. Add the plugin to Claude Code
 
 ```bash
-# Clone the repo
+# From the marketplace
+/plugin marketplace add ncihtan/htan-claude
+/plugin install htan@htan-claude
+```
+
+### 2. Set up and go
+
+Invoke the skill with `/htan`. On first use, Claude will:
+
+1. Create a venv in your project and install the `htan` CLI from the plugin
+2. Run `htan init` to configure credentials
+3. Suggest adding `Bash(htan *)` to your project permissions for smooth usage
+
+Then just ask:
+
+```
+"List all scRNA-seq files from breast cancer in HTAN"
+"Search HTAN publications about spatial transcriptomics"
+"What attributes are required for scRNA-seq Level 1 manifests?"
+```
+
+## Develop (Contributors)
+
+```bash
 git clone https://github.com/ncihtan/htan-claude.git
 cd htan-claude
+uv venv && uv pip install -e ".[all,dev]"
+uv run pytest tests/               # 168 tests
 
-# Create a virtual environment and install the package
-uv venv
-uv pip install -e .
-
-# Optional: install platform-specific extras as needed
-uv pip install -e ".[synapse]"    # Synapse downloads
-uv pip install -e ".[gen3]"       # Gen3/CRDC downloads
-uv pip install -e ".[bigquery]"   # BigQuery queries
-uv pip install -e ".[all]"        # All of the above
+# Use as a local plugin
+claude --plugin-dir .
 ```
 
-### 2. Configure credentials
-
-```bash
-# Run the interactive setup wizard
-htan init
-
-# Or check what's already configured
-htan config check
-```
+## Authentication
 
 | Service | How to Set Up |
 |---|---|
@@ -55,51 +65,6 @@ htan config check
 
 See `skills/htan/references/authentication_guide.md` for detailed instructions.
 
-### 3. Install the Claude Code plugin
-
-```bash
-# Option A: From the marketplace (when published)
-# In Claude Code, run:
-/plugin marketplace add ncihtan/htan-claude
-/plugin install htan@htan-claude
-
-# Option B: Local plugin directory
-claude --plugin-dir /path/to/htan-claude
-```
-
-### 4. Allow `htan` commands
-
-On first use, add this to your project's `.claude/settings.json` to allow all `htan` CLI commands without per-command prompts:
-
-```json
-{
-  "permissions": {
-    "allow": [
-      "Bash(htan *)"
-    ]
-  }
-}
-```
-
-### 5. Go
-
-```bash
-# Invoke the skill
-/htan
-
-# Ask Claude to query the portal
-"List all scRNA-seq files from breast cancer in HTAN"
-
-# Search publications
-"Search HTAN publications about spatial transcriptomics"
-
-# Look up a file ID
-"Look up HTAN file HTA9_1_19512"
-
-# Query the data model
-"What attributes are required for scRNA-seq Level 1 manifests?"
-```
-
 ## CLI Reference
 
 The `htan` command is the single interface — used by Claude and by you directly.
@@ -107,10 +72,8 @@ The `htan` command is the single interface — used by Claude and by you directl
 ```bash
 htan query portal files --organ Breast --assay "scRNA-seq" --limit 20
 htan query portal sql "SELECT atlas_name, COUNT(*) as n FROM files GROUP BY atlas_name"
-htan query portal summary
 htan pubs search --keyword "spatial transcriptomics"
 htan model components
-htan model attributes "scRNA-seq Level 1"
 htan files lookup HTA9_1_19512
 htan query bq tables
 htan config check
@@ -126,9 +89,9 @@ htan-claude/
 │   ├── cli.py                   # Unified CLI: `htan <command>`
 │   ├── config.py                # Credential management
 │   ├── query/portal.py          # Portal ClickHouse queries
-│   ├── query/bq.py              # BigQuery queries (needs htan[bigquery])
-│   ├── download/synapse.py      # Synapse downloads (needs htan[synapse])
-│   ├── download/gen3.py         # Gen3/CRDC downloads (needs htan[gen3])
+│   ├── query/bq.py              # BigQuery queries
+│   ├── download/synapse.py      # Synapse downloads
+│   ├── download/gen3.py         # Gen3/CRDC downloads
 │   ├── pubs.py                  # PubMed search
 │   ├── model.py                 # HTAN data model queries
 │   └── files.py                 # File ID mapping

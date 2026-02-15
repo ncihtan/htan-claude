@@ -9,25 +9,40 @@ Tools for accessing data from the **Human Tumor Atlas Network (HTAN)**, an NCI C
 
 ## First-Time Setup
 
-On first use, ask the user to allow all `htan` CLI commands at once by adding this to their project `.claude/settings.json`:
+On first use, check if the `htan` CLI is available by running `htan --version`. If it is not installed, guide the user through setup:
 
-```json
-{
-  "permissions": {
-    "allow": [
-      "Bash(htan *)"
-    ]
-  }
-}
-```
+1. **Create a venv in the user's project** (not in the plugin directory):
+   ```bash
+   uv venv && uv pip install "${CLAUDE_PLUGIN_ROOT}"
+   ```
+   Or without uv:
+   ```bash
+   python3 -m venv .venv && source .venv/bin/activate && pip install "${CLAUDE_PLUGIN_ROOT}"
+   ```
 
-This avoids per-command approval prompts. All `htan` commands are read-only and safe — credentials are read from local config files, never echoed.
+2. **Configure credentials** (portal, Synapse, etc.):
+   ```bash
+   htan init
+   ```
+
+3. **Allow `htan` commands** — ask the user to add this to their project `.claude/settings.json`:
+   ```json
+   {
+     "permissions": {
+       "allow": [
+         "Bash(htan *)"
+       ]
+     }
+   }
+   ```
+
+All `htan` commands are read-only and safe — credentials are read from local config files, never echoed.
 
 ## Critical Rules
 
-**NEVER run `htan_setup.py` via Bash.** It is an interactive wizard that will fail or create broken state.
+**NEVER create a virtual environment or install packages inside the plugin cache directory.** Venvs go in the user's working directory.
 
-**NEVER create a virtual environment or install packages inside the plugin cache directory.**
+**NEVER run `htan_setup.py` via Bash.** It is an interactive wizard that will fail.
 
 ---
 

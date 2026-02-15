@@ -1037,9 +1037,7 @@ wheels = [
 name = "htan"
 version = "0.2.0"
 source = { editable = "." }
-
-[package.optional-dependencies]
-all = [
+dependencies = [
     { name = "db-dtypes" },
     { name = "gen3" },
     { name = "google-cloud-bigquery" },
@@ -1047,38 +1045,25 @@ all = [
     { name = "pandas" },
     { name = "synapseclient" },
 ]
-bigquery = [
-    { name = "db-dtypes" },
-    { name = "google-cloud-bigquery" },
-    { name = "google-cloud-bigquery-storage" },
-    { name = "pandas" },
-]
+
+[package.optional-dependencies]
 dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
-gen3 = [
-    { name = "gen3" },
-]
-synapse = [
-    { name = "synapseclient" },
-]
 
 [package.metadata]
 requires-dist = [
-    { name = "db-dtypes", marker = "extra == 'bigquery'", specifier = ">=1.5" },
-    { name = "gen3", marker = "extra == 'gen3'", specifier = ">=4.27" },
-    { name = "google-cloud-bigquery", marker = "extra == 'bigquery'", specifier = ">=3.40" },
-    { name = "google-cloud-bigquery-storage", marker = "extra == 'bigquery'", specifier = ">=2.36" },
-    { name = "htan", extras = ["bigquery"], marker = "extra == 'all'" },
-    { name = "htan", extras = ["gen3"], marker = "extra == 'all'" },
-    { name = "htan", extras = ["synapse"], marker = "extra == 'all'" },
-    { name = "pandas", marker = "extra == 'bigquery'", specifier = ">=2.0" },
+    { name = "db-dtypes", specifier = ">=1.5" },
+    { name = "gen3", specifier = ">=4.27" },
+    { name = "google-cloud-bigquery", specifier = ">=3.40" },
+    { name = "google-cloud-bigquery-storage", specifier = ">=2.36" },
+    { name = "pandas", specifier = ">=2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1" },
-    { name = "synapseclient", marker = "extra == 'synapse'", specifier = ">=4.0" },
+    { name = "synapseclient", specifier = ">=4.0" },
 ]
-provides-extras = ["synapse", "gen3", "bigquery", "all", "dev"]
+provides-extras = ["dev"]
 
 [[package]]
 name = "httpcore"
