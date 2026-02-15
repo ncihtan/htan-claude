@@ -237,9 +237,9 @@ def _init_synapse(force=False, non_interactive=False):
             _print_status("Synapse login", True, f"Logged in as: {username}")
             return True, syn
         except ImportError:
-            _print_status("Synapse login", False,
-                          "synapseclient not installed (pip install htan[synapse])")
-            return False, None
+            _print_status("Synapse client", True,
+                          "Credentials found (install htan[synapse] to verify login)")
+            return True, None
         except Exception as e:
             _print_status("Synapse login", False, f"Login failed: {e}")
             if non_interactive:
@@ -284,9 +284,9 @@ def _init_synapse(force=False, non_interactive=False):
         _print_status("Synapse login", True, f"Logged in as: {username}")
         return True, syn
     except ImportError:
-        _print_status("Synapse login", False,
-                      "synapseclient not installed (pip install htan[synapse])")
-        return False, None
+        _print_status("Synapse client", True,
+                      "Credentials found (install htan[synapse] to verify login)")
+        return True, None
     except Exception as e:
         _print_status("Synapse login", False, f"Login failed: {e}")
         return False, None
