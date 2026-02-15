@@ -31,8 +31,8 @@ A Claude Code plugin for working with the **Human Tumor Atlas Network (HTAN)** �
 Invoke the skill with `/htan`. On first use, Claude will:
 
 1. Create a venv in your project and install the `htan` CLI from the plugin
-2. Run `htan init` to configure credentials
-3. Suggest adding `Bash(htan *)` to your project permissions for smooth usage
+2. Run `uv run htan init` to configure credentials
+3. Suggest adding `Bash(uv run htan *)` to your project permissions for smooth usage
 
 Then just ask:
 
@@ -47,7 +47,7 @@ Then just ask:
 ```bash
 git clone https://github.com/ncihtan/htan-claude.git
 cd htan-claude
-uv venv && uv pip install -e ".[all,dev]"
+uv venv && uv pip install -e ".[dev]"
 uv run pytest tests/               # 168 tests
 
 # Use as a local plugin
@@ -58,7 +58,7 @@ claude --plugin-dir .
 
 | Service | How to Set Up |
 |---|---|
-| **Portal** | Join [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team, then run `htan init` |
+| **Portal** | Join [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team, then run `uv run htan init` |
 | **Synapse** | Get a Personal Access Token from synapse.org, set `SYNAPSE_AUTH_TOKEN` or configure `~/.synapseConfig` |
 | **Gen3/CRDC** | Request dbGaP access for study `phs002371`, download credentials from the CRDC portal |
 | **BigQuery** | Run `gcloud auth application-default login` and set `GOOGLE_CLOUD_PROJECT` |
@@ -67,16 +67,16 @@ See `skills/htan/references/authentication_guide.md` for detailed instructions.
 
 ## CLI Reference
 
-The `htan` command is the single interface — used by Claude and by you directly.
+The `htan` command is the single interface — used by Claude (via `uv run`) and by you directly.
 
 ```bash
-htan query portal files --organ Breast --assay "scRNA-seq" --limit 20
-htan query portal sql "SELECT atlas_name, COUNT(*) as n FROM files GROUP BY atlas_name"
-htan pubs search --keyword "spatial transcriptomics"
-htan model components
-htan files lookup HTA9_1_19512
-htan query bq tables
-htan config check
+uv run htan query portal files --organ Breast --assay "scRNA-seq" --limit 20
+uv run htan query portal sql "SELECT atlas_name, COUNT(*) as n FROM files GROUP BY atlas_name"
+uv run htan pubs search --keyword "spatial transcriptomics"
+uv run htan model components
+uv run htan files lookup HTA9_1_19512
+uv run htan query bq tables
+uv run htan config check
 ```
 
 All commands accept `--help` for full usage.
@@ -85,7 +85,7 @@ All commands accept `--help` for full usage.
 
 ```
 htan-claude/
-├── src/htan/                    # pip-installable package (stdlib core)
+├── src/htan/                    # pip-installable package (all deps included)
 │   ├── cli.py                   # Unified CLI: `htan <command>`
 │   ├── config.py                # Credential management
 │   ├── query/portal.py          # Portal ClickHouse queries
@@ -103,7 +103,7 @@ htan-claude/
 └── CLAUDE.md                    # Developer instructions
 ```
 
-No MCP server. The skill teaches Claude the CLI commands. Claude runs them via Bash with blanket `Bash(htan *)` permission.
+No MCP server. The skill teaches Claude the CLI commands. Claude runs them via `uv run` with blanket `Bash(uv run htan *)` permission.
 
 ## License
 
