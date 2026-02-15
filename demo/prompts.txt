@@ -1,0 +1,26 @@
+# HTAN Skill Demo Prompts
+# 12 prompts across 6 acts
+
+## Act 1: Setup
+/htan
+Set up the htan skill — create a venv and install the package
+Configure portal credentials with htan init
+Add the uv run htan permission rule to .claude/settings.json
+
+## Act 2: Data Discovery
+Give me an overview of what data is available in HTAN
+Find all scRNA-seq files from breast cancer, show me the 10 smallest open-access ones
+What clinical demographics are available for HTAN OHSU patients?
+
+## Act 3: BigQuery
+Using BigQuery, how many unique participants per cancer type have both scRNA-seq and imaging data?
+
+## Act 4: Publications
+Search for HTAN publications about spatial transcriptomics from 2024
+
+## Act 5: Data Model
+What attributes are required for an scRNA-seq Level 1 manifest? Show valid values for Library Construction Method.
+
+## Act 6: Downloads
+Download the smallest open-access file we found earlier using synapse get
+For the controlled-access files, show me how I would download one via Gen3 dry run only
