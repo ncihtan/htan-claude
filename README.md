@@ -42,6 +42,23 @@ Then just ask:
 "What attributes are required for scRNA-seq Level 1 manifests?"
 ```
 
+## Demo Outputs
+
+Example outputs from running the skill headlessly via `claude -p`:
+
+| Prompt | Output |
+|---|---|
+| Give me an overview of what data is available in HTAN | [01_overview.md](demo/output/01_overview.md) |
+| Find the 10 smallest open-access scRNA-seq breast files | [02_scrna-breast.md](demo/output/02_scrna-breast.md) |
+| What clinical demographics are available for HTAN OHSU? | [03_demographics-ohsu.md](demo/output/03_demographics-ohsu.md) |
+| Participants per cancer type with both scRNA-seq and imaging (BigQuery) | [04_bigquery-multimodal.md](demo/output/04_bigquery-multimodal.md) |
+| HTAN publications about spatial transcriptomics from 2024 | [05_pubs-spatial.md](demo/output/05_pubs-spatial.md) |
+| Required attributes for scRNA-seq Level 1 manifest | [06_model-scrna.md](demo/output/06_model-scrna.md) |
+| Download the smallest open-access scRNA-seq breast file | [07_download-open.md](demo/output/07_download-open.md) |
+| Download a controlled-access file via Gen3 (dry run) | [08_download-controlled.md](demo/output/08_download-controlled.md) |
+
+Re-run with: `bash demo/run_demo.sh demo/output`
+
 ## Develop (Contributors)
 
 ```bash
