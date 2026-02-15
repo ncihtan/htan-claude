@@ -102,6 +102,8 @@ Example: `isb-cgc-bq.HTAN_versioned.clinical_tier1_demographics_r7`
 
 ## Assay Metadata Tables
 
+**Note:** All assay metadata tables include `File_Size` (INTEGER, bytes) and `entityId` (STRING, Synapse ID).
+
 ### Single-Cell RNA-seq
 
 **Table**: `scRNAseq_current` (or `scRNA-seq_current`)
@@ -114,6 +116,8 @@ Example: `isb-cgc-bq.HTAN_versioned.clinical_tier1_demographics_r7`
 | `Library_Construction_Method` | STRING | Library prep (e.g., `10x 3' v3`) |
 | `Dissociation_Method` | STRING | Tissue dissociation method |
 | `Cell_Total` | INTEGER | Total cells sequenced |
+| `File_Size` | INTEGER | File size in bytes |
+| `entityId` | STRING | Synapse ID for download |
 
 ### Single-Cell ATAC-seq
 
@@ -222,6 +226,16 @@ JOIN `isb-cgc-bq.HTAN.biospecimen_current` b
   ON s.HTAN_Biospecimen_ID = b.HTAN_Biospecimen_ID
 GROUP BY b.HTAN_Center
 ORDER BY total_cells DESC
+```
+
+### Find 10 smallest open-access scRNA-seq breast files
+
+```sql
+SELECT s.HTAN_Data_File_ID, s.Filename, s.File_Size, s.entityId
+FROM `isb-cgc-bq.HTAN.scRNAseq_level3_metadata_current` s
+WHERE s.File_Size > 0
+ORDER BY s.File_Size ASC
+LIMIT 10
 ```
 
 ### Available imaging assay types

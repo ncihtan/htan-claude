@@ -78,12 +78,15 @@ Table: scRNAseq_level1_metadata_current (also level2, level3, level4)
   HTAN_Data_File_ID (STRING)
   Library_Construction_Method (STRING)
   Filename (STRING)
+  File_Size (INTEGER) -- file size in bytes (present in ALL assay metadata tables)
+  entityId (STRING) -- Synapse ID (present in ALL assay metadata tables)
   HTAN_Center (STRING)
 
 === Notes ===
 - Join clinical tables on HTAN_Participant_ID
 - Join assay to biospecimen on HTAN_Parent_Biospecimen_ID = HTAN_Biospecimen_ID
 - Dataset: isb-cgc-bq.HTAN (use fully qualified table names with _current suffix)
+- File_Size (INTEGER, bytes) and entityId (STRING, Synapse ID) exist in ALL assay metadata tables
 """.strip()
 
 

@@ -110,7 +110,7 @@ uv run htan files stats
 
 ### BigQuery (Requires Google Cloud Credentials)
 
-Deep clinical queries with multi-table joins, assay-level metadata.
+Deep clinical queries, assay-level metadata (cell counts, library methods, **file sizes**).
 
 ```bash
 uv run htan query bq tables
@@ -183,6 +183,19 @@ Use `uv run htan config check` to see what's configured.
 1. `uv run htan query bq sql "SELECT ..."` — find `HTAN_Data_File_ID`
 2. `uv run htan query portal manifest <file_ids>` — get download coordinates
 3. Download via `uv run synapse get` or `gen3-client`
+
+## Platform Data Gaps
+
+| Data | Portal | BigQuery |
+|---|---|---|
+| File size | Not available | `File_Size` (INTEGER, bytes) in assay metadata tables |
+| Cell counts | Not available | `Cell_Total` in scRNAseq tables |
+| Library method | Not available | `Library_Construction_Method` in assay tables |
+| Download coordinates | `synapseId`, DRS URI | `entityId` only |
+
+Note: `File_Size` and `entityId` exist in **all** BigQuery assay metadata tables (scRNAseq, bulkRNAseq, imaging, scATACseq, electron_microscopy, bulkWES, etc.), not just scRNAseq.
+
+**Fallback rule**: If a query needs file sizes, cell counts, or assay-level metadata not in the portal, use BigQuery assay metadata tables (e.g., `scRNAseq_level3_metadata_current`, `imaging_level2_metadata_current`). Then use portal or `htan files lookup` for download coordinates.
 
 **HTAN Documentation**: See `references/htan_docs_manual.md` for citing HTAN, dbGaP access, data levels, visualization tools.
 

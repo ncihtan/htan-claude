@@ -322,6 +322,7 @@ ClickHouse SQL is mostly standard but has some differences from BigQuery/standar
 | **Workflow steps** | 2 (query → download) | 3 (query → file mapping → download) |
 | **Join complexity** | Simple (mostly single-table) | Complex (multi-table clinical joins) |
 | **SLA / stability** | No SLA — public credentials could change | Google Cloud SLA |
+| **File size data** | Not available | File_Size in assay metadata tables |
 | **Data freshness** | Portal release cadence (database name changes) | ISB-CGC release cadence |
 
 ### When to Use Each
@@ -337,6 +338,7 @@ ClickHouse SQL is mostly standard but has some differences from BigQuery/standar
 - Assay-level metadata (library construction, cell counts, read length)
 - Queries requiring specific BigQuery features (UDFs, ML, etc.)
 - Production workflows requiring SLA guarantees
+- File size queries (sorting by size, finding smallest/largest files)
 
 ## Limitations and Risks
 
