@@ -4,85 +4,58 @@
 
 This is a Claude Code skill for working with the **Human Tumor Atlas Network (HTAN)** — an NCI Cancer Moonshot initiative that constructs 3D atlases of the dynamic cellular, morphological, and molecular features of human cancers as they evolve from precancerous lesions to advanced disease. The skill provides tools for accessing HTAN data across four platforms (HTAN Portal ClickHouse, Synapse, CRDC/Gen3, ISB-CGC BigQuery), searching HTAN publications, and querying HTAN metadata.
 
-## Implementation Status
+## Package Structure
 
-All 14 files have been implemented and verified:
+The core functionality lives in the `htan` pip-installable package (`src/htan/`). The skill definition (`skills/htan/SKILL.md`) teaches Claude the CLI commands. No MCP server — just Bash calls to the `htan` CLI.
 
-| File | Status | Notes |
+| Module | Source | Notes |
 |---|---|---|
-| `SKILL.md` | Done | Skill definition with unified workflow |
-| `scripts/htan_portal_config.py` | Done | Shared config loader for portal credentials (stdlib only) |
-| `scripts/htan_portal.py` | Done | Portal ClickHouse queries — credentials from config file, zero dependencies |
-| `scripts/htan_setup.py` | Done | `init` wizard, `init-portal`, `--check` verified; portal check reads from config |
-| `scripts/htan_pubmed.py` | Done | `--help`, `--dry-run`, and live search verified |
-| `scripts/htan_synapse.py` | Done | `--help` verified; needs live test with credentials |
-| `scripts/htan_gen3.py` | Done | `--help` and `--dry-run` verified; needs live test with credentials + dbGaP |
-| `scripts/htan_bigquery.py` | Done | `--help` and NL query output verified; needs live test with GCP project |
-| `scripts/htan_file_mapping.py` | Done | `--help`, `update`, `lookup`, `stats` verified |
-| `scripts/htan_data_model.py` | Done | `--help`, `fetch`, `components`, `attributes`, `describe`, `valid-values`, `search`, `required`, `deps` verified; no auth, stdlib only |
-| `references/clickhouse_portal.md` | Done | Portal schema, queries, limitations |
-| `references/authentication_guide.md` | Done | |
-| `references/htan_atlases.md` | Done | |
-| `references/htan_data_model.md` | Done | Model-derived reference (v25.2.1): 64 components, controlled vocabularies, validation rules |
-| `references/bigquery_tables.md` | Done | |
-| `references/htan_docs_manual.md` | Done | Full site map of docs.humantumoratlas.org, citations, identifiers, platforms, FAQ |
-| `LICENSE.txt` | Done | MIT |
-
-### What Has Been Tested
-
-- `htan_setup.py --check` — all packages installed, all auth configs detected, portal connectivity checked
-- `htan_portal.py tables` — lists portal ClickHouse tables
-- `htan_portal.py files --organ Breast --limit 5` — file queries with filters
-- `htan_portal.py sql "SELECT ..."` — direct SQL execution
-- `htan_portal.py files --dry-run` — SQL generation without execution
-- `htan_pubmed.py search --keyword "spatial transcriptomics" --max-results 3` — live PubMed search returned results
-- `htan_pubmed.py search --dry-run` — correct E-utilities URL construction
-- `htan_gen3.py download "drs://dg.4DFC/abc-123-def" --dry-run` — DRS URI validation works
-- `htan_bigquery.py query "..." --dry-run` — schema context output correct
-- `htan_data_model.py fetch` — downloads model CSV from GitHub, caches locally
-- `htan_data_model.py components` — lists all 64 manifest components
-- `htan_data_model.py attributes "scRNA-seq Level 1"` — lists attributes for a component
-- `htan_data_model.py describe "File Format"` — full attribute detail with valid values
-- `htan_data_model.py search "barcode"` — keyword search across attributes
-- All scripts `--help` — works correctly
+| `htan.config` | `src/htan/config.py` | 3-tier credential resolution (env > keychain > config file) |
+| `htan.query.portal` | `src/htan/query/portal.py` | Portal ClickHouse queries, `PortalClient` class (stdlib only) |
+| `htan.query.bq` | `src/htan/query/bq.py` | BigQuery queries, `BigQueryClient` class (needs `htan[bigquery]`) |
+| `htan.download.synapse` | `src/htan/download/synapse.py` | Synapse downloads (needs `htan[synapse]`) |
+| `htan.download.gen3` | `src/htan/download/gen3.py` | Gen3/CRDC DRS downloads (needs `htan[gen3]`) |
+| `htan.pubs` | `src/htan/pubs.py` | PubMed search (stdlib only) |
+| `htan.model` | `src/htan/model.py` | HTAN data model queries, `DataModel` class (stdlib only) |
+| `htan.files` | `src/htan/files.py` | File ID to download coordinate mapping (stdlib only) |
+| `htan.cli` | `src/htan/cli.py` | Unified CLI entry point (`htan` command) |
 
 ### What Still Needs Live Testing
 
-- `htan_synapse.py download synXXXXXXXX --dry-run` — test with Synapse credentials
-- `htan_bigquery.py tables` — test with GCP project
-- `htan_bigquery.py sql "SELECT ..."` — test actual query execution
-- `htan_gen3.py resolve` — test with Gen3 credentials (requires dbGaP)
+- `htan download synapse synXXXXXXXX --dry-run` — test with Synapse credentials
+- `htan query bq tables` — test with GCP project
+- `htan query bq sql "SELECT ..."` — test actual query execution
+- `htan download gen3 resolve` — test with Gen3 credentials (requires dbGaP)
 
 ## Environment Setup
 
-The project uses a **uv virtual environment** for reproducibility.
+The project uses a **uv virtual environment** and a `pyproject.toml`-based package layout.
 
 ### uv Package Management Rules
 
 All Python dependencies **must** be managed with `uv`. Never use `pip`, `pip-tools`, `poetry`, or `conda` for dependency tasks.
 
-- **Run scripts**: `uv run scripts/<name>.py` (automatically resolves dependencies — no manual venv activation needed)
+- **Install the package**: `uv pip install -e ".[dev]"` (editable mode with dev deps)
+- **Install all extras**: `uv pip install -e ".[all,dev]"`
+- **Run CLI**: `uv run htan <command>` or just `htan <command>` after install
+- **Run tests**: `uv run pytest tests/`
 - **Run PyPI tools directly**: `uvx ruff`, `uvx pytest`
-- **Add a package to the venv**: `uv pip install <package>`
-- **Recreate the environment**: `uv venv .venv && uv pip install synapseclient gen3 google-cloud-bigquery google-cloud-bigquery-storage pandas db-dtypes`
+- **Build wheel**: `uv build`
 
 When executing any Python code in this project, **always use `uv run`** instead of activating the venv manually. This ensures the correct environment is used regardless of shell state.
 
-### PEP 723 Inline Script Metadata
+### Package Dependencies (pyproject.toml)
 
-Scripts that require third-party packages should declare dependencies inline using PEP 723 metadata. This makes each script fully portable — `uv run` will automatically fetch the declared dependencies without any prior environment setup:
+Core package is stdlib-only. Optional extras for platform-specific features:
 
-```python
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#     "synapseclient>=4.0",
-#     "pandas>=2.0",
-# ]
-# ///
+```bash
+pip install htan              # Core: portal, pubs, model, files (stdlib only)
+pip install htan[synapse]     # + Synapse downloads
+pip install htan[gen3]        # + Gen3/CRDC downloads
+pip install htan[bigquery]    # + BigQuery queries
+pip install htan[all]         # All of the above
+pip install htan[dev]         # + pytest, ruff
 ```
-
-Never rely on implicit existence of packages in the surrounding environment. Explicit dependency specification should travel with the code. Scripts using only stdlib (e.g., `htan_portal.py`, `htan_pubmed.py`, `htan_data_model.py`) do not need a metadata block.
 
 ## Credential Security
 
@@ -95,62 +68,52 @@ Never rely on implicit existence of packages in the surrounding environment. Exp
 Portal credentials are **not stored in source code**. They are fetched from Synapse behind a team membership gate, providing an audit trail of who accessed them.
 
 **When using Claude Code**, avoid running commands that would print credentials or signed URLs into the conversation (which flows through the Anthropic API). Specifically:
-- **Safe to run via Claude**: `--help`, `--dry-run`, PubMed searches, all `htan_portal.py` commands (credentials read from local config, not echoed), BigQuery `tables`/`describe`/`sql` (metadata results are not sensitive), file mapping `update`/`lookup`/`stats`, all `htan_data_model.py` commands (fetches from public GitHub, no credentials)
-- **Run in your own terminal**: `htan_gen3.py resolve` (outputs signed URLs), any command where error messages might echo tokens
+- **Safe to run via Claude**: `--help`, `--dry-run`, PubMed searches, all portal queries (credentials read from local config, not echoed), BigQuery `tables`/`describe`/`sql` (metadata results are not sensitive), file mapping `update`/`lookup`/`stats`, all data model commands (fetches from public GitHub, no credentials)
+- **Run in your own terminal**: `htan download gen3 resolve` (outputs signed URLs), any command where error messages might echo tokens
 
-## Skill Architecture
+## Project Layout
 
 ```
 htan-skill/
-├── .cache/                           # Cached mapping file (not committed)
-├── .venv/                            # uv virtual environment (not committed)
+├── pyproject.toml                    # Package definition (hatchling build)
+├── src/
+│   └── htan/                         # pip-installable package
+│       ├── __init__.py               # Version
+│       ├── cli.py                    # Unified CLI: `htan <command>`
+│       ├── config.py                 # Credential management (3-tier: env > keychain > file)
+│       ├── query/
+│       │   ├── portal.py             # Portal ClickHouse queries (stdlib only)
+│       │   └── bq.py                 # BigQuery queries (needs htan[bigquery])
+│       ├── download/
+│       │   ├── synapse.py            # Synapse downloads (needs htan[synapse])
+│       │   └── gen3.py               # Gen3/CRDC DRS downloads (needs htan[gen3])
+│       ├── pubs.py                   # PubMed publication search (stdlib only)
+│       ├── model.py                  # HTAN data model queries (stdlib only)
+│       └── files.py                  # File ID → download coordinate mapping (stdlib only)
+├── tests/                            # Package tests (pytest)
+├── skills/
+│   └── htan/
+│       ├── SKILL.md                  # Skill definition (teaches Claude the CLI)
+│       ├── scripts/                  # Legacy standalone scripts (kept for backward compat)
+│       └── references/               # Reference docs (schema, auth, atlases, model)
+├── .claude-plugin/
+│   └── plugin.json                   # Plugin metadata (no MCP server)
 ├── CLAUDE.md                         # Project instructions (this file)
-├── LICENSE.txt
-├── README.md
-└── skills/
-    └── htan/
-        ├── SKILL.md                  # Skill definition (name, description, instructions)
-        ├── scripts/
-        │   ├── htan_portal_config.py # Shared config loader for portal credentials (stdlib only)
-        │   ├── htan_portal.py        # Query HTAN portal ClickHouse (creds from config, zero deps)
-        │   ├── htan_synapse.py       # Synapse open-access data download
-        │   ├── htan_gen3.py          # Gen3/CRDC controlled-access data download via DRS
-        │   ├── htan_bigquery.py      # Natural language query of HTAN metadata in ISB-CGC
-        │   ├── htan_file_mapping.py  # File ID → Synapse/Gen3 download coordinate mapping
-        │   ├── htan_pubmed.py        # PubMed search for HTAN publications
-        │   ├── htan_data_model.py    # Phase 1 data model queries (no auth, stdlib only)
-        │   └── htan_setup.py         # Environment setup and dependency installation
-        └── references/
-            ├── clickhouse_portal.md  # Portal ClickHouse schema, queries, and limitations
-            ├── htan_data_model.md    # HTAN data model, entity types, and controlled vocabularies
-            ├── htan_atlases.md       # Atlas centers and their cancer types
-            ├── bigquery_tables.md    # ISB-CGC BigQuery table reference for HTAN
-            ├── authentication_guide.md  # Auth setup for Synapse, Gen3, and BigQuery
-            └── htan_docs_manual.md   # Full site map of docs.humantumoratlas.org + key facts
+└── LICENSE.txt
 ```
 
 ## Core Dependencies
 
-Dependencies are managed by `uv`. Scripts with third-party deps should declare them via PEP 723 inline metadata (see above). To install all deps into the project venv:
+Dependencies are defined in `pyproject.toml`. Core package is stdlib-only; optional extras add platform support:
 
-```bash
-uv pip install synapseclient gen3 google-cloud-bigquery google-cloud-bigquery-storage pandas db-dtypes
-```
-
-| Dependency | Purpose |
-|---|---|
-| `synapseclient` (4.11.0) | Download open-access HTAN data from Synapse |
-| `gen3` (4.27.5) | Download controlled-access data from CRDC via DRS URIs |
-| `google-cloud-bigquery` (3.40.0) | Query HTAN metadata tables in ISB-CGC |
-| `google-cloud-bigquery-storage` (2.36.0) | Fast BigQuery result retrieval |
-| `pandas` (2.3.3) | Data manipulation for query results |
-| `db-dtypes` (1.5.0) | BigQuery data type support for pandas |
-
-PubMed search uses only stdlib (`urllib`, `json`, `xml.etree.ElementTree`) — no additional dependencies.
-
-Portal ClickHouse queries (`htan_portal.py`) also use only stdlib (`urllib`, `json`, `base64`, `ssl`) — no additional dependencies. Credentials are loaded from `~/.config/htan-skill/portal.json` via `htan_portal_config.py`.
-
-Data model queries (`htan_data_model.py`) use only stdlib (`csv`, `json`, `urllib`, `argparse`) — no additional dependencies.
+| Extra | Dependencies | Purpose |
+|---|---|---|
+| (core) | stdlib only | Portal queries, PubMed, data model, file mapping |
+| `synapse` | `synapseclient>=4.0` | Synapse open-access downloads |
+| `gen3` | `gen3>=4.27` | Gen3/CRDC controlled-access downloads |
+| `bigquery` | `google-cloud-bigquery`, `pandas`, etc. | ISB-CGC BigQuery queries |
+| `all` | synapse + gen3 + bigquery | All platform extras |
+| `dev` | `pytest`, `ruff` | Development tools |
 
 ## Data Access Tiers
 
@@ -209,9 +172,9 @@ The simplest workflow uses the portal ClickHouse database, which includes downlo
 2. **Download** from the appropriate platform based on access tier
 
 ```bash
-python3 scripts/htan_portal.py files --organ Breast --assay "scRNA-seq" --output json
-python3 scripts/htan_portal.py manifest HTA9_1_19512 --output-dir ./manifests
-python3 scripts/htan_synapse.py download syn26535909
+htan query portal files --organ Breast --assay "scRNA-seq" --output json
+htan query portal manifest HTA9_1_19512 --output-dir ./manifests
+htan download synapse download syn26535909
 ```
 
 ### Alternative: BigQuery → File Mapping → Download (3 steps, for complex queries)
@@ -222,19 +185,19 @@ For deep clinical queries requiring multi-table joins or assay-level metadata (c
 2. **Look up file IDs** via `htan_file_mapping.py` to get `entityId` (Synapse) and `drs_uri` (Gen3)
 3. **Download** from the appropriate platform based on access tier
 
-### File Mapping Script
+### File Mapping
 
-`scripts/htan_file_mapping.py` bridges BigQuery results and downloads using the HTAN portal's DRS mapping file (~67,000 files):
+`htan.files` (`htan files`) bridges BigQuery results and downloads using the HTAN portal's DRS mapping file (~67,000 files):
 
 ```bash
-python3 scripts/htan_file_mapping.py update                         # Download/refresh cache
-python3 scripts/htan_file_mapping.py lookup HTA9_1_19512            # Look up file ID
-python3 scripts/htan_file_mapping.py lookup HTA9_1_19512 --format json  # JSON with download cmds
-python3 scripts/htan_file_mapping.py lookup --file ids.txt          # Batch lookup from file
-python3 scripts/htan_file_mapping.py stats                          # Mapping statistics
+htan files update                              # Download/refresh cache
+htan files lookup HTA9_1_19512                 # Look up file ID
+htan files lookup HTA9_1_19512 --format json   # JSON with download cmds
+htan files lookup --file ids.txt               # Batch lookup from file
+htan files stats                               # Mapping statistics
 ```
 
-Cache is stored at `.cache/crdcgc_drs_mapping.json` (auto-downloaded on first use).
+Cache is stored at `~/.cache/htan-skill/crdcgc_drs_mapping.json` (auto-downloaded on first use).
 
 ### Access Tier Determination
 
@@ -248,7 +211,7 @@ Based on the HTAN portal source (`FileTable.tsx` + `processSynapseJSON.ts`):
 | Specialized assays (electron microscopy, RPPA, slide-seq, mass spec) | Open | Synapse |
 | Imaging in dbGaP set with DRS URI | Open | CRDC-GC |
 
-The `infer_access_tier(file_id, level, assay)` function in `htan_file_mapping.py` implements these rules.
+The `infer_access_tier(file_id, level, assay)` function in `htan.files` implements these rules.
 
 ## Synapse Integration Details
 
@@ -440,189 +403,88 @@ For searching across HTAN manuscript full text, use the PubMed Central (PMC) API
 | HTAN TNP SRRS | Multiple | 2 |
 | HTAN TNP TMA | Multiple | 2 |
 
-## Script Implementation Guidelines
+## CLI Reference
 
-### General Principles
+The `htan` command provides a unified interface to all functionality. Install with `pip install htan` (or `uv pip install -e .` for development).
 
-- Every script must be **self-contained and runnable via `python3 scripts/<name>.py`**
-- Use `argparse` for CLI parameters
-- Print clear progress messages to stderr, results to stdout
-- Handle authentication errors gracefully with actionable messages
-- Never hardcode credentials — always use env vars or config files
-- Include `--help` with examples
-
-### Error Handling Pattern
-
-```python
-import sys
-
-def check_auth(service_name, env_var):
-    """Check if authentication is configured and provide actionable guidance."""
-    import os
-    token = os.environ.get(env_var)
-    if not token:
-        print(f"Error: {service_name} authentication not configured.", file=sys.stderr)
-        print(f"Set the {env_var} environment variable.", file=sys.stderr)
-        print(f"See references/authentication_guide.md for setup instructions.", file=sys.stderr)
-        sys.exit(1)
-    return token
-```
-
-### Script: htan_portal.py
+### Portal Queries
 
 ```bash
-# List tables in the portal database
-python3 scripts/htan_portal.py tables
-
-# Describe a table schema
-python3 scripts/htan_portal.py describe files
-
-# Query files with filters
-python3 scripts/htan_portal.py files --organ Breast --assay "scRNA-seq" --limit 10
-
-# Look up specific file IDs (returns synapseId and DRS URI)
-python3 scripts/htan_portal.py files --data-file-id HTA9_1_19512 --output json
-
-# Clinical queries
-python3 scripts/htan_portal.py demographics --atlas "HTAN OHSU" --limit 10
-python3 scripts/htan_portal.py diagnosis --organ Breast --limit 10
-
-# Direct SQL
-python3 scripts/htan_portal.py sql "SELECT atlas_name, COUNT(*) as n FROM files GROUP BY atlas_name"
-
-# Generate download manifests
-python3 scripts/htan_portal.py manifest HTA9_1_19512 HTA9_1_19553 --output-dir ./manifests
+htan query portal tables
+htan query portal describe files
+htan query portal files --organ Breast --assay "scRNA-seq" --limit 10
+htan query portal files --data-file-id HTA9_1_19512 --output json
+htan query portal demographics --atlas "HTAN OHSU" --limit 10
+htan query portal diagnosis --organ Breast --limit 10
+htan query portal sql "SELECT atlas_name, COUNT(*) as n FROM files GROUP BY atlas_name"
+htan query portal manifest HTA9_1_19512 HTA9_1_19553 --output-dir ./manifests
 ```
 
-### Script: htan_setup.py
+### BigQuery Queries
 
-Interactive setup wizard and dependency/auth checker:
 ```bash
-python3 scripts/htan_setup.py init              # Interactive setup wizard (first-time setup)
-python3 scripts/htan_setup.py init --force       # Re-run all steps even if configured
-python3 scripts/htan_setup.py init --non-interactive  # Skip prompts (CI/scripted)
-python3 scripts/htan_setup.py                    # Check all services
-python3 scripts/htan_setup.py --check            # Check only, don't install
-python3 scripts/htan_setup.py init-portal        # Download portal credentials from Synapse
-python3 scripts/htan_setup.py init-portal --force  # Overwrite existing config
+htan query bq query "How many patients with breast cancer in HTAN?"
+htan query bq sql "SELECT COUNT(*) FROM ..."
+htan query bq tables
+htan query bq tables --versioned
+htan query bq describe clinical_tier1_demographics
 ```
 
-### Script: htan_synapse.py
+### Downloads
 
 ```bash
-# Download a file by Synapse entity ID
-python3 scripts/htan_synapse.py download syn26535909
-
-# Download to a specific directory
-python3 scripts/htan_synapse.py download syn26535909 --output-dir ./data
-
-# Dry run — check metadata without downloading
-python3 scripts/htan_synapse.py download syn26535909 --dry-run
+htan download synapse download syn26535909
+htan download synapse download syn26535909 --output-dir ./data --dry-run
+htan download gen3 download "drs://dg.4DFC/guid-here" --credentials credentials.json
+htan download gen3 download --manifest drs_uris.txt
+htan download gen3 resolve "drs://dg.4DFC/guid-here"
 ```
 
-### Script: htan_gen3.py
+### Publications
 
 ```bash
-# Download by DRS URI
-python3 scripts/htan_gen3.py download "drs://dg.4DFC/guid-here" --credentials credentials.json
-
-# Download multiple DRS URIs from file
-python3 scripts/htan_gen3.py download --manifest drs_uris.txt --credentials credentials.json
-
-# Resolve DRS URI to signed URL (no download)
-python3 scripts/htan_gen3.py resolve "drs://dg.4DFC/guid-here" --credentials credentials.json
+htan pubs search
+htan pubs search --keyword "spatial transcriptomics"
+htan pubs search --author "Sorger PK" --format json
+htan pubs fetch 12345678
+htan pubs fulltext "tumor microenvironment"
 ```
 
-### Script: htan_file_mapping.py
+### Data Model
 
 ```bash
-# Download/refresh the mapping cache
-python3 scripts/htan_file_mapping.py update
-
-# Look up one or more file IDs
-python3 scripts/htan_file_mapping.py lookup HTA9_1_19512 HTA9_1_19553
-
-# Look up from a file (one ID per line)
-python3 scripts/htan_file_mapping.py lookup --file ids.txt
-
-# JSON output with download commands
-python3 scripts/htan_file_mapping.py lookup HTA9_1_19512 --format json
-
-# Show mapping statistics
-python3 scripts/htan_file_mapping.py stats
+htan model fetch
+htan model components
+htan model attributes "scRNA-seq Level 1"
+htan model describe "Library Construction Method"
+htan model valid-values "File Format"
+htan model search "barcode"
+htan model required "Biospecimen"
+htan model deps "scRNA-seq Level 1"
 ```
 
-### Script: htan_bigquery.py
+### File Mapping
 
 ```bash
-# Natural language query
-python3 scripts/htan_bigquery.py query "How many patients with breast cancer in HTAN?"
-
-# Direct SQL query
-python3 scripts/htan_bigquery.py sql "SELECT COUNT(*) FROM ..."
-
-# List available tables (defaults to HTAN dataset with _current tables)
-python3 scripts/htan_bigquery.py tables
-
-# List versioned tables
-python3 scripts/htan_bigquery.py tables --versioned
-
-# Describe a table schema (auto-appends _current suffix)
-python3 scripts/htan_bigquery.py describe clinical_tier1_demographics
+htan files update
+htan files lookup HTA9_1_19512 HTA9_1_19553
+htan files lookup --file ids.txt --format json
+htan files stats
 ```
 
-### Script: htan_pubmed.py
+### Config
 
 ```bash
-# Search all HTAN publications
-python3 scripts/htan_pubmed.py search
-
-# Search with keyword filter
-python3 scripts/htan_pubmed.py search --keyword "spatial transcriptomics"
-
-# Search by specific atlas/center
-python3 scripts/htan_pubmed.py search --author "Sorger PK"
-
-# Get details for a specific PMID
-python3 scripts/htan_pubmed.py fetch 12345678
-
-# Full-text search across PMC articles
-python3 scripts/htan_pubmed.py fulltext "tumor microenvironment"
-
-# Output as JSON for programmatic use
-python3 scripts/htan_pubmed.py search --format json
+htan config check
 ```
 
-### Script: htan_data_model.py
+### Setup (standalone script)
 
-Query the HTAN Phase 1 data model (ncihtan/data-models v25.2.1). No auth required, stdlib only.
-
+The setup wizard remains a standalone script (not part of the package):
 ```bash
-# Download/refresh model CSV
-python3 scripts/htan_data_model.py fetch
-python3 scripts/htan_data_model.py fetch --dry-run
-
-# List all 64 manifest components
-python3 scripts/htan_data_model.py components
-
-# List attributes for a component
-python3 scripts/htan_data_model.py attributes "scRNA-seq Level 1"
-python3 scripts/htan_data_model.py attributes "Biospecimen"
-
-# Full detail for one attribute
-python3 scripts/htan_data_model.py describe "Library Construction Method"
-
-# List valid values
-python3 scripts/htan_data_model.py valid-values "File Format"
-
-# Search by keyword
-python3 scripts/htan_data_model.py search "barcode"
-
-# Required fields for a component
-python3 scripts/htan_data_model.py required "Biospecimen"
-
-# Dependency chain
-python3 scripts/htan_data_model.py deps "scRNA-seq Level 1"
+python3 skills/htan/scripts/htan_setup.py init
+python3 skills/htan/scripts/htan_setup.py --check
+python3 skills/htan/scripts/htan_setup.py init-portal
 ```
 
 ## SKILL.md Guidelines
@@ -630,8 +492,9 @@ python3 scripts/htan_data_model.py deps "scRNA-seq Level 1"
 The SKILL.md should:
 - Use `name: htan` as the skill name (invoked via `/htan`)
 - Description should mention: HTAN data access, portal ClickHouse, Synapse, Gen3/CRDC, BigQuery, and publication search
-- Body should explain the 6 capabilities and when to use each
-- Reference scripts for each operation
+- Teach Claude the `htan` CLI commands with examples — no MCP server
+- Include first-time setup instructions for `Bash(htan *)` permission
+- Reference the `htan` CLI for each operation
 - Keep under 500 lines — move detailed docs to `references/`
 
 ## Security Requirements
@@ -645,71 +508,50 @@ The SKILL.md should:
 
 ## Testing Approach
 
-Every script supports `--dry-run` for validation without API calls.
-
-### Testing via Claude Code (safe — no credentials exposed)
+### Unit Tests
 
 ```bash
-source .venv/bin/activate
+uv run pytest tests/ -v          # Run all 58 tests
+uv run pytest tests/ -k portal   # Run portal tests only
+```
 
-# First-time setup (interactive wizard — run once)
-# python3 scripts/htan_setup.py init
+### CLI Smoke Tests (safe — no credentials exposed)
 
-# Check status
-python3 scripts/htan_setup.py --check
-python3 scripts/htan_portal.py tables
-python3 scripts/htan_portal.py describe files
-python3 scripts/htan_portal.py files --organ Breast --limit 5
-python3 scripts/htan_portal.py files --data-file-id HTA9_1_19512 --output json
-python3 scripts/htan_portal.py sql "SELECT atlas_name, COUNT(*) as n FROM files GROUP BY atlas_name ORDER BY n DESC"
-python3 scripts/htan_portal.py files --organ Breast --dry-run
+```bash
+# Portal queries
+htan query portal tables
+htan query portal describe files
+htan query portal files --organ Breast --limit 5
+htan query portal sql "SELECT atlas_name, COUNT(*) as n FROM files GROUP BY atlas_name ORDER BY n DESC"
+htan query portal files --organ Breast --dry-run
 
 # PubMed (no auth needed)
-python3 scripts/htan_pubmed.py search --max-results 5
-python3 scripts/htan_pubmed.py search --keyword "spatial transcriptomics" --max-results 3
-python3 scripts/htan_pubmed.py search --dry-run
+htan pubs search --max-results 5
+htan pubs search --keyword "spatial transcriptomics" --max-results 3
 
-# Data model (no auth needed, stdlib only)
-python3 scripts/htan_data_model.py fetch
-python3 scripts/htan_data_model.py fetch --dry-run
-python3 scripts/htan_data_model.py components
-python3 scripts/htan_data_model.py attributes "scRNA-seq Level 1"
-python3 scripts/htan_data_model.py describe "File Format"
-python3 scripts/htan_data_model.py valid-values "Preservation Method"
-python3 scripts/htan_data_model.py search "barcode"
-python3 scripts/htan_data_model.py required "Biospecimen"
-python3 scripts/htan_data_model.py deps "scRNA-seq Level 1"
+# Data model (no auth needed)
+htan model components
+htan model attributes "scRNA-seq Level 1"
+htan model describe "File Format"
+htan model search "barcode"
 
-# Other dry-run tests
-python3 scripts/htan_gen3.py download "drs://dg.4DFC/test-guid" --dry-run
-python3 scripts/htan_bigquery.py query "How many breast cancer patients?"
-python3 scripts/htan_file_mapping.py update
-python3 scripts/htan_file_mapping.py lookup HTA9_1_19512
-python3 scripts/htan_file_mapping.py stats
+# File mapping
+htan files update
+htan files lookup HTA9_1_19512
+htan files stats
 ```
 
 ### Testing in your own terminal (credentials involved)
 
 ```bash
-source .venv/bin/activate
-
 # Synapse
-python3 scripts/htan_synapse.py download syn26535909 --dry-run
+htan download synapse download syn26535909 --dry-run
 
-# BigQuery (set your project first)
+# BigQuery
 export GOOGLE_CLOUD_PROJECT="your-project-id"
-python3 scripts/htan_bigquery.py tables
-python3 scripts/htan_bigquery.py describe clinical_tier1_demographics
-python3 scripts/htan_bigquery.py sql "SELECT HTAN_Center, COUNT(*) as n FROM \`isb-cgc-bq.HTAN.clinical_tier1_demographics_current\` GROUP BY HTAN_Center"
+htan query bq tables
+htan query bq describe clinical_tier1_demographics
 
-# Gen3 (requires dbGaP authorization for phs002371)
-python3 scripts/htan_gen3.py resolve "drs://dg.4DFC/your-guid"
+# Gen3 (requires dbGaP authorization)
+htan download gen3 resolve "drs://dg.4DFC/your-guid"
 ```
-
-### BigQuery dry_run cost estimation
-
-```bash
-python3 scripts/htan_bigquery.py sql "SELECT * FROM \`isb-cgc-bq.HTAN.clinical_tier1_demographics_current\`" --dry-run
-```
-
-This uses `QueryJobConfig(dry_run=True)` to estimate bytes processed without executing.

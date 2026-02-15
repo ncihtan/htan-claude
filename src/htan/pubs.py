@@ -1,15 +1,16 @@
-#!/usr/bin/env python3
 """Search HTAN publications on PubMed and PubMed Central.
 
-Uses NCBI E-utilities REST API — no external dependencies required.
+Uses NCBI E-utilities REST API — no external dependencies required (stdlib only).
 
-Usage:
-    python3 scripts/htan_pubmed.py search
-    python3 scripts/htan_pubmed.py search --keyword "spatial transcriptomics"
-    python3 scripts/htan_pubmed.py search --author "Sorger PK" --format json
-    python3 scripts/htan_pubmed.py fetch 12345678
-    python3 scripts/htan_pubmed.py fulltext "tumor microenvironment"
-    python3 scripts/htan_pubmed.py search --dry-run
+Usage as library:
+    from htan.pubs import search, fetch, fulltext
+    articles = search(keyword="spatial transcriptomics", max_results=10)
+    details = fetch("12345678")
+
+Usage as CLI:
+    htan pubs search --keyword "spatial transcriptomics"
+    htan pubs fetch 12345678
+    htan pubs fulltext "tumor microenvironment"
 """
 
 import argparse
@@ -26,7 +27,7 @@ EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 TOOL_NAME = "htan_skill"
 TOOL_EMAIL = "htan-skill@example.com"
 REQUEST_DELAY = 0.34  # seconds between requests (3 req/sec limit without API key)
-DEFAULT_TIMEOUT = 60  # seconds — PubMed can be slow for large grant-based queries
+DEFAULT_TIMEOUT = 60
 
 # HTAN Phase 1 grant numbers (CA233xxx series)
 PHASE1_GRANTS = [
@@ -84,13 +85,10 @@ def build_search_query(keyword=None, author=None, year=None):
     grant_query = build_grant_query()
     author_query = build_author_query(author)
     query = f"({grant_query}) AND ({author_query})"
-
     if keyword:
         query = f"({query}) AND ({keyword})"
-
     if year:
         query = f"({query}) AND ({year}[pdat])"
-
     return query
 
 
@@ -111,55 +109,11 @@ def eutils_request(endpoint, params, timeout=DEFAULT_TIMEOUT):
         print(f"Error: Could not connect to E-utilities: {e.reason}", file=sys.stderr)
         sys.exit(1)
     except TimeoutError:
-        print(f"Error: PubMed request timed out after {timeout}s. Try a narrower search or use --timeout to increase.", file=sys.stderr)
+        print(f"Error: PubMed request timed out after {timeout}s.", file=sys.stderr)
         sys.exit(1)
 
 
-def search_pubmed(query, max_results=100, timeout=DEFAULT_TIMEOUT):
-    """Search PubMed and return a list of PMIDs."""
-    params = {
-        "db": "pubmed",
-        "term": query,
-        "retmax": str(max_results),
-        "retmode": "json",
-        "sort": "pub_date",
-    }
-    raw = eutils_request("esearch.fcgi", params, timeout=timeout)
-    data = json.loads(raw)
-    result = data.get("esearchresult", {})
-    count = int(result.get("count", 0))
-    pmids = result.get("idlist", [])
-    print(f"Found {count} results, returning {len(pmids)}", file=sys.stderr)
-    return pmids
-
-
-def fetch_articles(pmids, timeout=DEFAULT_TIMEOUT):
-    """Fetch article details for a list of PMIDs. Returns list of article dicts."""
-    if not pmids:
-        return []
-
-    articles = []
-    # Fetch in batches of 200
-    batch_size = 200
-    for i in range(0, len(pmids), batch_size):
-        batch = pmids[i : i + batch_size]
-        params = {
-            "db": "pubmed",
-            "id": ",".join(batch),
-            "rettype": "xml",
-            "retmode": "xml",
-        }
-        raw = eutils_request("efetch.fcgi", params, timeout=timeout)
-        root = ET.fromstring(raw)
-        for article_elem in root.findall(".//PubmedArticle"):
-            article = parse_article_xml(article_elem)
-            if article:
-                articles.append(article)
-
-    return articles
-
-
-def parse_article_xml(article_elem):
+def _parse_article_xml(article_elem):
     """Parse a PubmedArticle XML element into a dict."""
     try:
         medline = article_elem.find("MedlineCitation")
@@ -173,11 +127,9 @@ def parse_article_xml(article_elem):
         if article is None:
             return None
 
-        # Title
         title_elem = article.find("ArticleTitle")
         title = "".join(title_elem.itertext()) if title_elem is not None else ""
 
-        # Authors
         authors = []
         author_list = article.find("AuthorList")
         if author_list is not None:
@@ -190,11 +142,9 @@ def parse_article_xml(article_elem):
                         name += f" {initials.text}"
                     authors.append(name)
 
-        # Journal
         journal_elem = article.find("Journal/Title")
         journal = journal_elem.text if journal_elem is not None else ""
 
-        # Year
         year = ""
         pub_date = article.find("Journal/JournalIssue/PubDate")
         if pub_date is not None:
@@ -206,7 +156,6 @@ def parse_article_xml(article_elem):
                 if medline_date is not None and medline_date.text:
                     year = medline_date.text[:4]
 
-        # Abstract
         abstract_parts = []
         abstract_elem = article.find("Abstract")
         if abstract_elem is not None:
@@ -219,7 +168,6 @@ def parse_article_xml(article_elem):
                     abstract_parts.append(text)
         abstract = "\n".join(abstract_parts)
 
-        # DOI
         doi = ""
         article_id_list = article_elem.find("PubmedData/ArticleIdList")
         if article_id_list is not None:
@@ -229,30 +177,94 @@ def parse_article_xml(article_elem):
                     break
 
         return {
-            "pmid": pmid,
-            "title": title,
-            "authors": authors,
-            "journal": journal,
-            "year": year,
-            "doi": doi,
-            "abstract": abstract,
+            "pmid": pmid, "title": title, "authors": authors,
+            "journal": journal, "year": year, "doi": doi, "abstract": abstract,
         }
     except Exception as e:
         print(f"Warning: Failed to parse article: {e}", file=sys.stderr)
         return None
 
 
-def search_pmc_fulltext(query, max_results=50, timeout=DEFAULT_TIMEOUT):
-    """Search PubMed Central for full-text HTAN articles."""
+# --- Public API ---
+
+def search(keyword=None, author=None, year=None, max_results=100, timeout=DEFAULT_TIMEOUT):
+    """Search HTAN publications on PubMed.
+
+    Args:
+        keyword: Optional keyword filter.
+        author: Optional last author filter (e.g., "Sorger PK").
+        year: Optional publication year filter.
+        max_results: Maximum number of results (default 100).
+        timeout: HTTP timeout in seconds.
+
+    Returns:
+        List of article dicts with keys: pmid, title, authors, journal, year, doi, abstract.
+    """
+    query = build_search_query(keyword=keyword, author=author, year=year)
+    params = {
+        "db": "pubmed", "term": query, "retmax": str(max_results),
+        "retmode": "json", "sort": "pub_date",
+    }
+    raw = eutils_request("esearch.fcgi", params, timeout=timeout)
+    data = json.loads(raw)
+    result = data.get("esearchresult", {})
+    count = int(result.get("count", 0))
+    pmids = result.get("idlist", [])
+    print(f"Found {count} results, returning {len(pmids)}", file=sys.stderr)
+
+    if not pmids:
+        return []
+
+    return fetch(pmids, timeout=timeout)
+
+
+def fetch(pmids, timeout=DEFAULT_TIMEOUT):
+    """Fetch article details for a list of PMIDs.
+
+    Args:
+        pmids: Single PMID string or list of PMIDs.
+        timeout: HTTP timeout in seconds.
+
+    Returns:
+        List of article dicts.
+    """
+    if isinstance(pmids, str):
+        pmids = [pmids]
+    if not pmids:
+        return []
+
+    articles = []
+    batch_size = 200
+    for i in range(0, len(pmids), batch_size):
+        batch = pmids[i : i + batch_size]
+        params = {"db": "pubmed", "id": ",".join(batch), "rettype": "xml", "retmode": "xml"}
+        raw = eutils_request("efetch.fcgi", params, timeout=timeout)
+        root = ET.fromstring(raw)
+        for article_elem in root.findall(".//PubmedArticle"):
+            article = _parse_article_xml(article_elem)
+            if article:
+                articles.append(article)
+
+    return articles
+
+
+def fulltext(query, max_results=50, timeout=DEFAULT_TIMEOUT):
+    """Search HTAN articles in PubMed Central (full-text).
+
+    Args:
+        query: Full-text search query.
+        max_results: Maximum number of results.
+        timeout: HTTP timeout in seconds.
+
+    Returns:
+        List of article dicts with keys: pmc_id, title, journal, year, doi, pmid, authors.
+    """
     grant_query = build_grant_query()
     full_query = f"({grant_query}) AND ({query})"
 
     params = {
-        "db": "pmc",
-        "term": full_query,
-        "retmax": str(max_results),
-        "retmode": "json",
-        "sort": "pub_date",
+        "db": "pmc", "term": full_query, "retmax": str(max_results),
+        "retmode": "json", "sort": "pub_date",
     }
     raw = eutils_request("esearch.fcgi", params, timeout=timeout)
     data = json.loads(raw)
@@ -264,12 +276,7 @@ def search_pmc_fulltext(query, max_results=50, timeout=DEFAULT_TIMEOUT):
     if not pmc_ids:
         return []
 
-    # Fetch summaries for PMC articles
-    params = {
-        "db": "pmc",
-        "id": ",".join(pmc_ids),
-        "retmode": "json",
-    }
+    params = {"db": "pmc", "id": ",".join(pmc_ids), "retmode": "json"}
     raw = eutils_request("esummary.fcgi", params, timeout=timeout)
     data = json.loads(raw)
     summaries = data.get("result", {})
@@ -291,6 +298,8 @@ def search_pmc_fulltext(query, max_results=50, timeout=DEFAULT_TIMEOUT):
 
     return articles
 
+
+# --- Formatting ---
 
 def format_article_text(article):
     """Format a single article for text output."""
@@ -318,158 +327,99 @@ def format_article_text(article):
     return "\n".join(lines)
 
 
-def format_articles_json(articles):
-    """Format articles as JSON."""
-    return json.dumps(articles, indent=2)
+# --- CLI ---
 
-
-def cmd_search(args):
-    """Handle the 'search' subcommand."""
-    timeout = getattr(args, "timeout", DEFAULT_TIMEOUT)
-    query = build_search_query(
-        keyword=args.keyword,
-        author=args.author,
-        year=args.year,
-    )
-
-    if args.dry_run:
-        params = {
-            "db": "pubmed",
-            "term": query,
-            "retmax": str(args.max_results),
-            "retmode": "json",
-            "sort": "pub_date",
-            "tool": TOOL_NAME,
-            "email": TOOL_EMAIL,
-        }
-        url = f"{EUTILS_BASE}/esearch.fcgi?{urllib.parse.urlencode(params)}"
-        print(f"Dry run — would request:", file=sys.stderr)
-        print(f"  URL: {url}", file=sys.stderr)
-        print(f"  Query: {query}", file=sys.stderr)
-        return
-
-    pmids = search_pubmed(query, max_results=args.max_results, timeout=timeout)
-    if not pmids:
-        print("No articles found.", file=sys.stderr)
-        return
-
-    articles = fetch_articles(pmids, timeout=timeout)
-
-    if args.format == "json":
-        print(format_articles_json(articles))
-    else:
-        for article in articles:
-            print(format_article_text(article))
-            print()
-
-
-def cmd_fetch(args):
-    """Handle the 'fetch' subcommand."""
-    timeout = getattr(args, "timeout", DEFAULT_TIMEOUT)
-    if args.dry_run:
-        print(f"Dry run — would fetch PMIDs: {', '.join(args.pmids)}", file=sys.stderr)
-        return
-
-    articles = fetch_articles(args.pmids, timeout=timeout)
-    if not articles:
-        print("No articles found for the given PMIDs.", file=sys.stderr)
-        return
-
-    if args.format == "json":
-        print(format_articles_json(articles))
-    else:
-        for article in articles:
-            print(format_article_text(article))
-            print()
-
-
-def cmd_fulltext(args):
-    """Handle the 'fulltext' subcommand."""
-    timeout = getattr(args, "timeout", DEFAULT_TIMEOUT)
-    if args.dry_run:
-        grant_query = build_grant_query()
-        full_query = f"({grant_query}) AND ({args.query})"
-        params = {
-            "db": "pmc",
-            "term": full_query,
-            "retmax": str(args.max_results),
-            "retmode": "json",
-            "sort": "pub_date",
-            "tool": TOOL_NAME,
-            "email": TOOL_EMAIL,
-        }
-        url = f"{EUTILS_BASE}/esearch.fcgi?{urllib.parse.urlencode(params)}"
-        print(f"Dry run — would request:", file=sys.stderr)
-        print(f"  URL: {url}", file=sys.stderr)
-        return
-
-    articles = search_pmc_fulltext(args.query, max_results=args.max_results, timeout=timeout)
-    if not articles:
-        print("No PMC articles found.", file=sys.stderr)
-        return
-
-    if args.format == "json":
-        print(format_articles_json(articles))
-    else:
-        for article in articles:
-            print(format_article_text(article))
-            print()
-
-
-def main():
+def cli_main(argv=None):
+    """CLI entry point for publication search."""
     parser = argparse.ArgumentParser(
         description="Search HTAN publications on PubMed and PubMed Central",
         epilog="Examples:\n"
-        "  python3 scripts/htan_pubmed.py search\n"
-        '  python3 scripts/htan_pubmed.py search --keyword "spatial transcriptomics"\n'
-        '  python3 scripts/htan_pubmed.py search --author "Sorger PK"\n'
-        "  python3 scripts/htan_pubmed.py fetch 12345678\n"
-        '  python3 scripts/htan_pubmed.py fulltext "tumor microenvironment"\n',
+        "  htan pubs search\n"
+        '  htan pubs search --keyword "spatial transcriptomics"\n'
+        '  htan pubs search --author "Sorger PK"\n'
+        "  htan pubs fetch 12345678\n"
+        '  htan pubs fulltext "tumor microenvironment"\n',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # search subcommand
     sp_search = subparsers.add_parser("search", help="Search HTAN publications on PubMed")
     sp_search.add_argument("--keyword", "-k", help="Filter by keyword")
-    sp_search.add_argument("--author", "-a", help="Filter by last author (e.g., 'Sorger PK')")
+    sp_search.add_argument("--author", "-a", help="Filter by last author")
     sp_search.add_argument("--year", "-y", help="Filter by publication year")
-    sp_search.add_argument(
-        "--max-results", "-n", type=int, default=100, help="Maximum results (default: 100)"
-    )
-    sp_search.add_argument(
-        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
-    )
-    sp_search.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help=f"HTTP timeout in seconds (default: {DEFAULT_TIMEOUT})")
+    sp_search.add_argument("--max-results", "-n", type=int, default=100, help="Maximum results (default: 100)")
+    sp_search.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    sp_search.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help=f"HTTP timeout (default: {DEFAULT_TIMEOUT})")
     sp_search.add_argument("--dry-run", action="store_true", help="Show query URL without executing")
-    sp_search.set_defaults(func=cmd_search)
 
-    # fetch subcommand
     sp_fetch = subparsers.add_parser("fetch", help="Fetch details for specific PMIDs")
     sp_fetch.add_argument("pmids", nargs="+", help="PubMed IDs to fetch")
-    sp_fetch.add_argument(
-        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
-    )
-    sp_fetch.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help=f"HTTP timeout in seconds (default: {DEFAULT_TIMEOUT})")
-    sp_fetch.add_argument("--dry-run", action="store_true", help="Show what would be fetched")
-    sp_fetch.set_defaults(func=cmd_fetch)
+    sp_fetch.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    sp_fetch.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
+    sp_fetch.add_argument("--dry-run", action="store_true")
 
-    # fulltext subcommand
     sp_full = subparsers.add_parser("fulltext", help="Search HTAN articles in PubMed Central")
     sp_full.add_argument("query", help="Full-text search query")
-    sp_full.add_argument(
-        "--max-results", "-n", type=int, default=50, help="Maximum results (default: 50)"
-    )
-    sp_full.add_argument(
-        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
-    )
-    sp_full.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help=f"HTTP timeout in seconds (default: {DEFAULT_TIMEOUT})")
-    sp_full.add_argument("--dry-run", action="store_true", help="Show query URL without executing")
-    sp_full.set_defaults(func=cmd_fulltext)
+    sp_full.add_argument("--max-results", "-n", type=int, default=50, help="Maximum results (default: 50)")
+    sp_full.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    sp_full.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
+    sp_full.add_argument("--dry-run", action="store_true")
 
-    args = parser.parse_args()
-    args.func(args)
+    args = parser.parse_args(argv)
 
+    if args.command == "search":
+        query = build_search_query(keyword=args.keyword, author=args.author, year=args.year)
+        if args.dry_run:
+            params = {"db": "pubmed", "term": query, "retmax": str(args.max_results),
+                      "retmode": "json", "sort": "pub_date", "tool": TOOL_NAME, "email": TOOL_EMAIL}
+            url = f"{EUTILS_BASE}/esearch.fcgi?{urllib.parse.urlencode(params)}"
+            print(f"Dry run — would request:", file=sys.stderr)
+            print(f"  URL: {url}", file=sys.stderr)
+            return
+        articles = search(keyword=args.keyword, author=args.author, year=args.year,
+                          max_results=args.max_results, timeout=args.timeout)
+        if not articles:
+            print("No articles found.", file=sys.stderr)
+            return
+        if args.format == "json":
+            print(json.dumps(articles, indent=2))
+        else:
+            for a in articles:
+                print(format_article_text(a))
+                print()
 
-if __name__ == "__main__":
-    main()
+    elif args.command == "fetch":
+        if args.dry_run:
+            print(f"Dry run — would fetch PMIDs: {', '.join(args.pmids)}", file=sys.stderr)
+            return
+        articles = fetch(args.pmids, timeout=args.timeout)
+        if not articles:
+            print("No articles found.", file=sys.stderr)
+            return
+        if args.format == "json":
+            print(json.dumps(articles, indent=2))
+        else:
+            for a in articles:
+                print(format_article_text(a))
+                print()
+
+    elif args.command == "fulltext":
+        if args.dry_run:
+            grant_query = build_grant_query()
+            full_query = f"({grant_query}) AND ({args.query})"
+            params = {"db": "pmc", "term": full_query, "retmax": str(args.max_results),
+                      "retmode": "json", "sort": "pub_date", "tool": TOOL_NAME, "email": TOOL_EMAIL}
+            url = f"{EUTILS_BASE}/esearch.fcgi?{urllib.parse.urlencode(params)}"
+            print(f"Dry run — would request:", file=sys.stderr)
+            print(f"  URL: {url}", file=sys.stderr)
+            return
+        articles = fulltext(args.query, max_results=args.max_results, timeout=args.timeout)
+        if not articles:
+            print("No PMC articles found.", file=sys.stderr)
+            return
+        if args.format == "json":
+            print(json.dumps(articles, indent=2))
+        else:
+            for a in articles:
+                print(format_article_text(a))
+                print()
