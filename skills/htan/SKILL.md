@@ -22,7 +22,7 @@ On first use, check if the `htan` CLI is available by running `htan --version`. 
 
 2. **Configure credentials** (portal, Synapse, etc.):
    ```bash
-   htan init
+   uv run htan init
    ```
 
 3. **Allow `htan` commands** — ask the user to add this to their project `.claude/settings.json`:
@@ -30,7 +30,7 @@ On first use, check if the `htan` CLI is available by running `htan --version`. 
    {
      "permissions": {
        "allow": [
-         "Bash(htan *)"
+         "Bash(uv run htan *)"
        ]
      }
    }
@@ -40,6 +40,8 @@ All `htan` commands are read-only and safe — credentials are read from local c
 
 ## Critical Rules
 
+**ALWAYS prefix commands with `uv run`** when a venv exists (e.g., `uv run htan query portal tables`). NEVER use `source .venv/bin/activate &&` — `uv run` handles the venv automatically.
+
 **NEVER create a virtual environment or install packages inside the plugin cache directory.** Venvs go in the user's working directory.
 
 **NEVER run `htan_setup.py` via Bash.** It is an interactive wizard that will fail.
@@ -48,23 +50,23 @@ All `htan` commands are read-only and safe — credentials are read from local c
 
 ## CLI Reference
 
-All commands use the `htan` CLI. Run any command with `--help` for full usage.
+All commands use `uv run htan ...`. NEVER use `source .venv/bin/activate`. Run any command with `--help` for full usage.
 
 ### Portal Database (Recommended Starting Point)
 
 The fastest way to find HTAN files and get download coordinates. Uses the portal's ClickHouse backend.
 
 ```bash
-htan query portal files --organ Breast --assay "scRNA-seq" --limit 20
-htan query portal sql "SELECT atlas_name, COUNT(*) as n FROM files GROUP BY atlas_name"
-htan query portal tables
-htan query portal describe files
-htan query portal demographics --atlas "HTAN OHSU"
-htan query portal diagnosis --organ Breast --limit 10
-htan query portal cases --atlas "HTAN MSK"
-htan query portal specimen --organ Colon
-htan query portal summary
-htan query portal manifest HTA9_1_19512 HTA9_1_19553 --output-dir ./manifests
+uv run htan query portal files --organ Breast --assay "scRNA-seq" --limit 20
+uv run htan query portal sql "SELECT atlas_name, COUNT(*) as n FROM files GROUP BY atlas_name"
+uv run htan query portal tables
+uv run htan query portal describe files
+uv run htan query portal demographics --atlas "HTAN OHSU"
+uv run htan query portal diagnosis --organ Breast --limit 10
+uv run htan query portal cases --atlas "HTAN MSK"
+uv run htan query portal specimen --organ Colon
+uv run htan query portal summary
+uv run htan query portal manifest HTA9_1_19512 HTA9_1_19553 --output-dir ./manifests
 ```
 
 **SQL notes**: Array columns (`organType`, `Gender`, `Race`, etc.) require `arrayExists()`. Use `<>` instead of `!=`. LIMIT is auto-applied. See `references/clickhouse_portal.md` for full schema.
@@ -72,10 +74,10 @@ htan query portal manifest HTA9_1_19512 HTA9_1_19553 --output-dir ./manifests
 ### Publications (No Auth Required)
 
 ```bash
-htan pubs search --keyword "spatial transcriptomics" --max-results 5
-htan pubs search --author "Sorger PK"
-htan pubs fetch 12345678
-htan pubs fulltext "tumor microenvironment"
+uv run htan pubs search --keyword "spatial transcriptomics" --max-results 5
+uv run htan pubs search --author "Sorger PK"
+uv run htan pubs fetch 12345678
+uv run htan pubs fulltext "tumor microenvironment"
 ```
 
 ### Data Model (No Auth Required)
@@ -83,14 +85,14 @@ htan pubs fulltext "tumor microenvironment"
 Query the HTAN Phase 1 data model — 1,071 attributes across 64 manifest components with controlled vocabularies.
 
 ```bash
-htan model components
-htan model attributes "scRNA-seq Level 1"
-htan model describe "File Format"
-htan model valid-values "File Format"
-htan model search "barcode"
-htan model required "Biospecimen"
-htan model deps "scRNA-seq Level 1"
-htan model fetch
+uv run htan model components
+uv run htan model attributes "scRNA-seq Level 1"
+uv run htan model describe "File Format"
+uv run htan model valid-values "File Format"
+uv run htan model search "barcode"
+uv run htan model required "Biospecimen"
+uv run htan model deps "scRNA-seq Level 1"
+uv run htan model fetch
 ```
 
 See `references/htan_data_model.md` for the full component catalog and identifier patterns.
@@ -100,10 +102,10 @@ See `references/htan_data_model.md` for the full component catalog and identifie
 Bridges file IDs to download coordinates using the HTAN portal's DRS mapping (~67,000 files).
 
 ```bash
-htan files lookup HTA9_1_19512
-htan files lookup HTA9_1_19512 --format json
-htan files update
-htan files stats
+uv run htan files lookup HTA9_1_19512
+uv run htan files lookup HTA9_1_19512 --format json
+uv run htan files update
+uv run htan files stats
 ```
 
 ### BigQuery (Requires Google Cloud Credentials)
@@ -111,11 +113,11 @@ htan files stats
 Deep clinical queries with multi-table joins, assay-level metadata.
 
 ```bash
-htan query bq tables
-htan query bq tables --versioned
-htan query bq describe clinical_tier1_demographics
-htan query bq sql "SELECT COUNT(*) FROM `isb-cgc-bq.HTAN.clinical_tier1_demographics_current`"
-htan query bq query "How many patients with breast cancer?"
+uv run htan query bq tables
+uv run htan query bq tables --versioned
+uv run htan query bq describe clinical_tier1_demographics
+uv run htan query bq sql "SELECT COUNT(*) FROM `isb-cgc-bq.HTAN.clinical_tier1_demographics_current`"
+uv run htan query bq query "How many patients with breast cancer?"
 ```
 
 See `references/bigquery_tables.md` for table schemas and query examples.
@@ -126,9 +128,9 @@ Use native platform CLIs — they're simpler and clearer.
 
 **Synapse (open access):**
 ```bash
-synapse get syn26535909
-synapse get syn26535909 --downloadLocation ./data
-synapse get -r syn12345678    # recursive folder download
+uv run synapse get syn26535909
+uv run synapse get syn26535909 --downloadLocation ./data
+uv run synapse get -r syn12345678    # recursive folder download
 ```
 
 **Gen3/CRDC (controlled access):**
@@ -139,14 +141,14 @@ gen3-client download-single --profile=htan --guid=<guid>
 ### Configuration
 
 ```bash
-htan config check    # Check credential status for all services
+uv run htan config check    # Check credential status for all services
 ```
 
 ---
 
 ## Setup
 
-Use `htan config check` to see what's configured.
+Use `uv run htan config check` to see what's configured.
 
 **Credential storage**:
 - **Portal ClickHouse**: `~/.config/htan-skill/portal.json` (or OS Keychain)
@@ -174,13 +176,13 @@ Use `htan config check` to see what's configured.
 ## Workflows
 
 **Recommended: Portal → Download** (2 steps)
-1. `htan query portal files --organ Breast --assay "scRNA-seq"` — find files with `synapseId` and `drs_uri`
-2. `synapse get <synID>` (open access) or `gen3-client download-single --guid <guid>` (controlled)
+1. `uv run htan query portal files --organ Breast --assay "scRNA-seq"` — find files with `synapseId` and `drs_uri`
+2. `uv run synapse get <synID>` (open access) or `gen3-client download-single --guid <guid>` (controlled)
 
 **Alternative: BigQuery → Download** (for complex clinical queries)
-1. `htan query bq sql "SELECT ..."` — find `HTAN_Data_File_ID`
-2. `htan query portal manifest <file_ids>` — get download coordinates
-3. Download via `synapse get` or `gen3-client`
+1. `uv run htan query bq sql "SELECT ..."` — find `HTAN_Data_File_ID`
+2. `uv run htan query portal manifest <file_ids>` — get download coordinates
+3. Download via `uv run synapse get` or `gen3-client`
 
 **HTAN Documentation**: See `references/htan_docs_manual.md` for citing HTAN, dbGaP access, data levels, visualization tools.
 
