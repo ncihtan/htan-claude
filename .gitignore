@@ -7,6 +7,14 @@
 # Python
 __pycache__/
 *.pyc
+*.egg-info/
+dist/
+build/
+
+# Test / coverage artifacts
+.coverage
+htmlcov/
+.pytest_cache/
 
 # OS
 .DS_Store
