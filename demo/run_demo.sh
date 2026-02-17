@@ -105,6 +105,10 @@ run_prompt "07" "download-open" \
 run_prompt "08" "download-controlled" \
     "Show me how I would download a controlled-access file via Gen3 dry run only"
 
+# --- Act 6: Retrospective Study ---
+run_prompt "09" "microbiome-ici" \
+    "Are there any data that might be interesting for retrospective study about microbiome mediated effects for ICIs?"
+
 echo "╔══════════════════════════════════════════════╗"
 echo "║           Demo complete!                     ║"
 echo "║  Outputs saved to: $OUTPUT_DIR/              ║"

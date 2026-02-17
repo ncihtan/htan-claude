@@ -1,6 +1,6 @@
 # HTAN Skill Demo
 
-Headless demo of the HTAN Claude Code skill across 8 prompts covering portal queries, BigQuery joins, PubMed search, data model lookups, and downloads.
+Headless demo of the HTAN Claude Code skill across 9 prompts covering portal queries, BigQuery joins, PubMed search, data model lookups, downloads, and research feasibility.
 
 ## Running
 
@@ -14,7 +14,7 @@ This runs each prompt via `claude -p` with `stream-json` output, then extracts t
 
 ## Results
 
-**Total: 50 tool calls, ~6 minutes, $1.69 API cost across all 8 prompts.**
+**Total: 61 tool calls, ~7 minutes, $1.69+ API cost across all 9 prompts.**
 
 | # | Prompt | Output | Trace | Tools | Time | Cost |
 |---|---|---|---|---|---|---|
@@ -26,6 +26,7 @@ This runs each prompt via `claude -p` with `stream-json` output, then extracts t
 | 06 | [scRNA-seq Level 1 manifest](#06-scrna-seq-level-1-manifest-attributes) | [.md](output/06_model-scrna.md) | [.jsonl](output/06_model-scrna.jsonl) | 2 | 13s | $0.07 |
 | 07 | [Download smallest file](#07-download-smallest-open-access-file) | [.md](output/07_download-open.md) | [.jsonl](output/07_download-open.jsonl) | 10 | 75s | $0.37 |
 | 08 | [Gen3 controlled-access dry run](#08-controlled-access-download-gen3) | [.md](output/08_download-controlled.md) | [.jsonl](output/08_download-controlled.jsonl) | 0 | 12s | $0.04 |
+| 09 | [Microbiome-ICI retrospective study](#09-microbiome-ici-retrospective-study) | [.md](output/09_microbiome-ici.md) | [.jsonl](output/09_microbiome-ici.jsonl) | 11 | 58s | — |
 
 ## How Claude Solved Each Prompt
 
@@ -102,6 +103,17 @@ Clean parallel execution. No errors.
 **Strategy:** Pure documentation response — zero tool calls.
 
 Claude recognized "show me how" as an informational request and provided a 3-step workflow (find file → resolve DRS URI → download via gen3-client) with prerequisites and security notes. Correctly avoided running `htan download gen3 resolve` which would output signed URLs into the conversation.
+
+### 09: Microbiome-ICI retrospective study
+
+**Strategy:** Multi-faceted data exploration across portal, publications, and data model. 11 tool calls.
+
+1. Searched the data model for microbiome-related attributes — found none
+2. Queried portal for relevant cancer types (colorectal, lung, melanoma) and their available assays
+3. Searched HTAN publications for microbiome-related work — found a spatial biofilm imaging paper
+4. Synthesized a practical strategy: computational microbial inference from bulk RNA-seq, immune microenvironment characterization via scRNA-seq/spatial data, and MSI signatures as a proxy
+
+**Key insight:** Even when HTAN lacks direct microbiome data, Claude identified indirect approaches (PathSeq on bulk RNA-seq, immune contexture analysis) and specific atlas/file counts that would support the research question. This demonstrates the skill's ability to reason about research feasibility, not just retrieve data.
 
 ## Patterns Observed
 
