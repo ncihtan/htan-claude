@@ -36,6 +36,8 @@ def main():
     if command == "init":
         from htan.init import cli_main
         cli_main(rest)
+    elif command == "etl":
+        _dispatch_etl(rest)
     elif command == "query":
         _dispatch_query(rest)
     elif command == "download":
@@ -54,6 +56,22 @@ def main():
     else:
         print(f"Unknown command: {command}", file=sys.stderr)
         _print_usage()
+        sys.exit(1)
+
+
+def _dispatch_etl(args):
+    if not args:
+        print("Usage: htan etl {omop} ...", file=sys.stderr)
+        sys.exit(1)
+
+    subcommand = args[0]
+    rest = args[1:]
+
+    if subcommand == "omop":
+        from htan.etl.omop import cli_main
+        cli_main(rest)
+    else:
+        print(f"Unknown etl subcommand: {subcommand}. Use 'omop'.", file=sys.stderr)
         sys.exit(1)
 
 
@@ -123,6 +141,7 @@ def _print_usage():
 
 Commands:
   init                Interactive setup wizard (configure credentials)
+  etl omop ...        ETL lung cancer data to OMOP CDM in DuckDB
   query portal ...    Query HTAN portal ClickHouse database
   query bq ...        Query HTAN metadata in ISB-CGC BigQuery
   download synapse .. Download open-access files from Synapse
