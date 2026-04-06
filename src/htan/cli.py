@@ -36,10 +36,14 @@ def main():
     if command == "init":
         from htan.init import cli_main
         cli_main(rest)
+    elif command == "etl":
+        _dispatch_etl(rest)
     elif command == "query":
         _dispatch_query(rest)
     elif command == "download":
         _dispatch_download(rest)
+    elif command == "upload":
+        _dispatch_upload(rest)
     elif command == "pubs":
         from htan.pubs import cli_main
         cli_main(rest)
@@ -54,6 +58,22 @@ def main():
     else:
         print(f"Unknown command: {command}", file=sys.stderr)
         _print_usage()
+        sys.exit(1)
+
+
+def _dispatch_etl(args):
+    if not args:
+        print("Usage: htan etl {omop} ...", file=sys.stderr)
+        sys.exit(1)
+
+    subcommand = args[0]
+    rest = args[1:]
+
+    if subcommand == "omop":
+        from htan.etl.omop import cli_main
+        cli_main(rest)
+    else:
+        print(f"Unknown etl subcommand: {subcommand}. Use 'omop'.", file=sys.stderr)
         sys.exit(1)
 
 
@@ -95,6 +115,22 @@ def _dispatch_download(args):
         sys.exit(1)
 
 
+def _dispatch_upload(args):
+    if not args:
+        print("Usage: htan upload {synapse} ...", file=sys.stderr)
+        sys.exit(1)
+
+    backend = args[0]
+    rest = args[1:]
+
+    if backend == "synapse":
+        from htan.upload.synapse import cli_main
+        cli_main(rest)
+    else:
+        print(f"Unknown upload backend: {backend}. Use 'synapse'.", file=sys.stderr)
+        sys.exit(1)
+
+
 def _dispatch_config(args):
     import json
     from htan.config import check_setup
@@ -123,9 +159,11 @@ def _print_usage():
 
 Commands:
   init                Interactive setup wizard (configure credentials)
+  etl omop ...        ETL lung cancer data to OMOP CDM in DuckDB
   query portal ...    Query HTAN portal ClickHouse database
   query bq ...        Query HTAN metadata in ISB-CGC BigQuery
   download synapse .. Download open-access files from Synapse
+  upload synapse ...  Upload files to Synapse (single, bulk, with annotations)
   download gen3 ...   Download controlled-access files from Gen3/CRDC
   pubs ...            Search HTAN publications on PubMed
   model ...           Query HTAN data model (components, attributes, valid values)
