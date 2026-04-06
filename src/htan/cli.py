@@ -42,6 +42,8 @@ def main():
         _dispatch_query(rest)
     elif command == "download":
         _dispatch_download(rest)
+    elif command == "upload":
+        _dispatch_upload(rest)
     elif command == "pubs":
         from htan.pubs import cli_main
         cli_main(rest)
@@ -113,6 +115,22 @@ def _dispatch_download(args):
         sys.exit(1)
 
 
+def _dispatch_upload(args):
+    if not args:
+        print("Usage: htan upload {synapse} ...", file=sys.stderr)
+        sys.exit(1)
+
+    backend = args[0]
+    rest = args[1:]
+
+    if backend == "synapse":
+        from htan.upload.synapse import cli_main
+        cli_main(rest)
+    else:
+        print(f"Unknown upload backend: {backend}. Use 'synapse'.", file=sys.stderr)
+        sys.exit(1)
+
+
 def _dispatch_config(args):
     import json
     from htan.config import check_setup
@@ -145,6 +163,7 @@ Commands:
   query portal ...    Query HTAN portal ClickHouse database
   query bq ...        Query HTAN metadata in ISB-CGC BigQuery
   download synapse .. Download open-access files from Synapse
+  upload synapse ...  Upload files to Synapse (single, bulk, with annotations)
   download gen3 ...   Download controlled-access files from Gen3/CRDC
   pubs ...            Search HTAN publications on PubMed
   model ...           Query HTAN data model (components, attributes, valid values)

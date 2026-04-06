@@ -2574,6 +2574,15 @@ wheels = [
 ]
 
 [[package]]
+name = "setuptools"
+version = "82.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4f/db/cfac1baf10650ab4d1c111714410d2fbb77ac5a616db26775db562c8fab2/setuptools-82.0.1.tar.gz", hash = "sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9", size = 1152316, upload-time = "2026-03-09T12:47:17.221Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9d/76/f789f7a86709c6b087c5a2f52f911838cad707cc613162401badc665acfe/setuptools-82.0.1-py3-none-any.whl", hash = "sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb", size = 1006223, upload-time = "2026-03-09T12:47:15.026Z" },
+]
+
+[[package]]
 name = "six"
 version = "1.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2593,7 +2602,7 @@ wheels = [
 
 [[package]]
 name = "synapseclient"
-version = "4.11.0"
+version = "4.12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "async-lru" },
@@ -2611,12 +2620,13 @@ dependencies = [
     { name = "opentelemetry-sdk" },
     { name = "psutil" },
     { name = "requests" },
+    { name = "setuptools" },
     { name = "tqdm" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/50/4c/bac249845183f324e6812b7989775c4c119fc196c319ba867b242ce34606/synapseclient-4.11.0.tar.gz", hash = "sha256:5e58501c727c3f67285b7d28b407f719cd8eddf6432a49c56384c4c307e3ac3b", size = 659325, upload-time = "2026-01-13T23:32:52.672Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6d/ee/9c4417e6d627fa4e2d92802627bb9b44d0e99779d1a67c85f6a4e673f14e/synapseclient-4.12.0.tar.gz", hash = "sha256:3c08a5a1eb9454ab5b88c58a25fd7b1119a9d2cd88a1ac1f2fca384e2f534f37", size = 670897, upload-time = "2026-04-03T15:28:54.667Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/e2/8ef166c3aed0ec9656109993125de3ad485304d740339eb77363cec3bc66/synapseclient-4.11.0-py3-none-any.whl", hash = "sha256:2d743ff54062a335a4c8110dcf8719908f88b14ec2bddd038d679d40cc558d8b", size = 739007, upload-time = "2026-01-13T23:32:49.48Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/5e/d110f689764d2ede52440c4e59776fc6360c84010f02c2f8ee30b84aeabf/synapseclient-4.12.0-py3-none-any.whl", hash = "sha256:310d73a908a7215511c4ed117131b8cc64aebe19d6d5065e705244c052d628f3", size = 751752, upload-time = "2026-04-03T15:28:52.242Z" },
 ]
 
 [[package]]

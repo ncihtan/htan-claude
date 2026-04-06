@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from htan.cli import main, _dispatch_query, _dispatch_download, _dispatch_config
+from htan.cli import main, _dispatch_query, _dispatch_download, _dispatch_config, _dispatch_upload
 
 
 # ===========================================================================
@@ -140,3 +140,36 @@ def test_main_routes_download():
          patch.object(sys, "argv", ["htan", "download", "synapse", "syn123"]):
         main()
     mock_cli.assert_called_once_with(["syn123"])
+
+
+# ===========================================================================
+# _dispatch_upload
+# ===========================================================================
+
+def test_dispatch_upload_synapse():
+    with patch("htan.upload.synapse.cli_main") as mock_cli:
+        _dispatch_upload(["synapse", "file", "./data.csv", "--parent", "syn12345678"])
+    mock_cli.assert_called_once_with(["file", "./data.csv", "--parent", "syn12345678"])
+
+
+def test_dispatch_upload_synapse_bulk():
+    with patch("htan.upload.synapse.cli_main") as mock_cli:
+        _dispatch_upload(["synapse", "bulk", "./data/", "--parent", "syn12345678"])
+    mock_cli.assert_called_once_with(["bulk", "./data/", "--parent", "syn12345678"])
+
+
+def test_dispatch_upload_no_args():
+    with pytest.raises(SystemExit):
+        _dispatch_upload([])
+
+
+def test_dispatch_upload_unknown_backend():
+    with pytest.raises(SystemExit):
+        _dispatch_upload(["s3"])
+
+
+def test_main_routes_upload():
+    with patch("htan.upload.synapse.cli_main") as mock_cli, \
+         patch.object(sys, "argv", ["htan", "upload", "synapse", "file", "./f.csv", "--parent", "syn99"]):
+        main()
+    mock_cli.assert_called_once_with(["file", "./f.csv", "--parent", "syn99"])

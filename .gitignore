@@ -19,6 +19,11 @@ htmlcov/
 # OS
 .DS_Store
 
+# Credentials — never commit
+.env
+.env.*
+!.env.example
+
 # Local Claude Code config
 .claude/settings.local.json
 
