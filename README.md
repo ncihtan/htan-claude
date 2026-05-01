@@ -30,9 +30,11 @@ A Claude Code plugin for working with the **Human Tumor Atlas Network (HTAN)** �
 
 Invoke the skill with `/htan`. On first use, Claude will:
 
-1. Create a venv in your project and install the `htan` CLI from the plugin
+1. Create a venv in your project and install [`htan`](https://pypi.org/project/htan/) from PyPI (`uv pip install htan`)
 2. Run `uv run htan init` to configure credentials
 3. Suggest adding `Bash(uv run htan *)` to your project permissions for smooth usage
+
+The CLI itself lives at **[ncihtan/htan-cli](https://github.com/ncihtan/htan-cli)** — file CLI bugs and feature requests there.
 
 Then just ask:
 
@@ -61,14 +63,19 @@ Re-run with: `bash demo/run_demo.sh demo/output`
 
 ## Develop (Contributors)
 
+This repo contains the Claude Code plugin (skill definition + reference docs + demo). The Python CLI it relies on lives in a separate repo.
+
 ```bash
+# Plugin (this repo)
 git clone https://github.com/ncihtan/htan-claude.git
 cd htan-claude
-uv venv && uv pip install -e ".[dev]"
-uv run pytest tests/               # 168 tests
+claude --plugin-dir .              # use as a local plugin
 
-# Use as a local plugin
-claude --plugin-dir .
+# CLI (separate repo)
+git clone https://github.com/ncihtan/htan-cli.git
+cd htan-cli
+uv venv && uv pip install -e ".[dev]"
+uv run pytest tests/               # 323 tests
 ```
 
 ## Authentication
@@ -84,7 +91,7 @@ See `skills/htan/references/authentication_guide.md` for detailed instructions.
 
 ## CLI Reference
 
-The `htan` command is the single interface — used by Claude (via `uv run`) and by you directly.
+The `htan` command is the single interface — used by Claude (via `uv run`) and by you directly. See the [htan-cli README](https://github.com/ncihtan/htan-cli#readme) for the full reference. A few examples:
 
 ```bash
 uv run htan query portal files --organ Breast --assay "scRNA-seq" --limit 20
@@ -101,23 +108,17 @@ All commands accept `--help` for full usage.
 ## Architecture
 
 ```
-htan-claude/
-├── src/htan/                    # pip-installable package (all deps included)
-│   ├── cli.py                   # Unified CLI: `htan <command>`
-│   ├── config.py                # Credential management
-│   ├── query/portal.py          # Portal ClickHouse queries
-│   ├── query/bq.py              # BigQuery queries
-│   ├── download/synapse.py      # Synapse downloads
-│   ├── download/gen3.py         # Gen3/CRDC downloads
-│   ├── pubs.py                  # PubMed search
-│   ├── model.py                 # HTAN data model queries
-│   └── files.py                 # File ID mapping
+htan-claude/                         # this repo (plugin)
 ├── skills/htan/
-│   ├── SKILL.md                 # Skill definition (teaches Claude the CLI)
-│   └── references/              # Reference docs (schema, auth, atlases)
-├── .claude-plugin/plugin.json   # Plugin metadata
-├── pyproject.toml               # Package definition
-└── CLAUDE.md                    # Developer instructions
+│   ├── SKILL.md                     # Skill definition (teaches Claude the CLI)
+│   ├── commands/                    # Slash commands (e.g. /htan:setup)
+│   └── references/                  # Reference docs (schema, auth, atlases)
+├── .claude-plugin/plugin.json       # Plugin metadata
+├── demo/                            # Headless example outputs
+└── CLAUDE.md                        # Plugin development notes
+
+ncihtan/htan-cli                     # separate repo (the CLI)
+└── src/htan/                        # `pip install htan` — depended on by the plugin
 ```
 
 No MCP server. The skill teaches Claude the CLI commands. Claude runs them via `uv run` with blanket `Bash(uv run htan *)` permission.

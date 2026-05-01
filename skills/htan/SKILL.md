@@ -9,15 +9,15 @@ Tools for accessing data from the **Human Tumor Atlas Network (HTAN)**, an NCI C
 
 ## First-Time Setup
 
-On first use, check if the `htan` CLI is available by running `htan --version`. If it is not installed, guide the user through setup:
+The `htan` CLI is published to PyPI as the [`htan`](https://pypi.org/project/htan/) package, source at [ncihtan/htan-cli](https://github.com/ncihtan/htan-cli). On first use, check whether it is available by running `uv run htan --version` (or `htan --version` if a venv is already active). If it is not installed, guide the user through setup:
 
-1. **Create a venv in the user's project** (not in the plugin directory):
+1. **Create a venv in the user's project** (not in the plugin directory) and install `htan` from PyPI:
    ```bash
-   uv venv && uv pip install "${CLAUDE_PLUGIN_ROOT}"
+   uv venv && uv pip install htan
    ```
    Or without uv:
    ```bash
-   python3 -m venv .venv && source .venv/bin/activate && pip install "${CLAUDE_PLUGIN_ROOT}"
+   python3 -m venv .venv && source .venv/bin/activate && pip install htan
    ```
 
 2. **Configure credentials** (portal, Synapse, etc.):
@@ -44,7 +44,7 @@ All `htan` commands are read-only and safe — credentials are read from local c
 
 **NEVER create a virtual environment or install packages inside the plugin cache directory.** Venvs go in the user's working directory.
 
-**NEVER run `htan_setup.py` via Bash.** It is an interactive wizard that will fail.
+**The `htan` CLI lives in [ncihtan/htan-cli](https://github.com/ncihtan/htan-cli)** — bug reports about CLI behavior, feature requests for new commands, and PRs that change `htan` itself belong over there. This plugin repo only owns the skill definition and reference docs.
 
 ---
 

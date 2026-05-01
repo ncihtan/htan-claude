@@ -2,13 +2,13 @@
 
 ## Recommended: Interactive Setup Wizard
 
-The easiest way to set up all authentication is the interactive wizard:
+The easiest way to set up all authentication is the interactive wizard built into the `htan` CLI:
 
 ```bash
-python3 scripts/htan_setup.py init
+uv run htan init
 ```
 
-This walks through environment setup, Synapse, portal credentials, BigQuery, and Gen3/CRDC in order, detecting what's already configured and providing instructions for anything missing.
+This walks through environment setup, Synapse, portal credentials, BigQuery, and Gen3/CRDC in order, detecting what's already configured and providing instructions for anything missing. To target one service, use `uv run htan init <service>` (e.g. `uv run htan init portal`); to inspect status without making changes, use `uv run htan init --status`.
 
 The manual instructions below are kept as reference for individual service setup.
 
