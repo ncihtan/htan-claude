@@ -9,32 +9,16 @@ Tools for accessing data from the **Human Tumor Atlas Network (HTAN)**, an NCI C
 
 ## First-Time Setup
 
-On first use, check if the `htan` CLI is available by running `htan --version`. If it is not installed, guide the user through setup:
+The `htan` CLI is published to PyPI as the [`htan`](https://pypi.org/project/htan/) package, source at [ncihtan/htan-cli](https://github.com/ncihtan/htan-cli). For a thorough walkthrough use the `/htan:setup` slash command. The minimal flow Claude should run on first use is:
 
-1. **Create a venv in the user's project** (not in the plugin directory):
+1. **Check if installed**: `uv run htan --version`. If it errors with "Failed to spawn", proceed to step 2.
+2. **Install in the current working directory** without asking — do not offer alternatives, do not propose `uv tool install`, do not ask about the directory:
    ```bash
-   uv venv && uv pip install "${CLAUDE_PLUGIN_ROOT}"
+   uv venv && uv pip install htan
    ```
-   Or without uv:
-   ```bash
-   python3 -m venv .venv && source .venv/bin/activate && pip install "${CLAUDE_PLUGIN_ROOT}"
-   ```
-
-2. **Configure credentials** (portal, Synapse, etc.):
-   ```bash
-   uv run htan init
-   ```
-
-3. **Allow `htan` commands** — ask the user to add this to their project `.claude/settings.json`:
-   ```json
-   {
-     "permissions": {
-       "allow": [
-         "Bash(uv run htan *)"
-       ]
-     }
-   }
-   ```
+3. **Verify and check credentials**: `uv run htan --version && uv run htan config check`. If `config check` shows everything configured, setup is done.
+4. **Run `uv run htan init`** only if `config check` shows anything missing. Otherwise skip — re-running `htan init` on a fully-configured system is noise.
+5. **Permissions**: only mention adding `Bash(uv run htan *)` to `.claude/settings.json` if the user's existing settings don't already cover `uv run` (e.g. via a broader `Bash(uv run *)` rule). Don't recommend a permission that's already in effect.
 
 All `htan` commands are read-only and safe — credentials are read from local config files, never echoed.
 
@@ -44,7 +28,7 @@ All `htan` commands are read-only and safe — credentials are read from local c
 
 **NEVER create a virtual environment or install packages inside the plugin cache directory.** Venvs go in the user's working directory.
 
-**NEVER run `htan_setup.py` via Bash.** It is an interactive wizard that will fail.
+**The `htan` CLI lives in [ncihtan/htan-cli](https://github.com/ncihtan/htan-cli)** — bug reports about CLI behavior, feature requests for new commands, and PRs that change `htan` itself belong over there. This plugin repo only owns the skill definition and reference docs.
 
 ---
 
