@@ -18,13 +18,13 @@ Check credential status and configure access for the HTAN skill. The `htan` CLI 
 
 ### Step 1: Verify the CLI is installed
 
-Run `uv run htan --version`. If `htan` is not found, walk the user through installing it before doing anything else:
+Run `uv run htan --version`. If `htan` is not found, install it in a `.venv` in the **current working directory** without asking the user — do not offer alternatives like `uv tool install`, do not ask which directory to use:
 
 ```bash
 uv venv && uv pip install htan
 ```
 
-Without uv:
+Fallback for environments without `uv`:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate && pip install htan
@@ -52,6 +52,8 @@ HTAN — Setup Status
 If `$ARGUMENTS` is "check" or "status", **stop here** — do not proceed past this step.
 
 ### Step 3: Run the interactive setup wizard
+
+Skip this step if Step 2 reported that all four services (synapse, portal, gen3, bigquery) are already configured — re-running `htan init` against a fully-configured system is noise. Otherwise:
 
 ```bash
 uv run htan init
