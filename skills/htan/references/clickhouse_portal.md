@@ -8,7 +8,7 @@ The portal uses public read-only credentials gated through Synapse team membersh
 
 **First-time setup:**
 1. Join the [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team (self-service)
-2. Run: `python3 scripts/htan_setup.py init-portal`
+2. Run: `uv run htan init portal`
 
 This downloads the credentials from Synapse and caches them locally at
 `~/.config/htan-skill/portal.json`.
