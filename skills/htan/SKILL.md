@@ -14,7 +14,7 @@ The `htan` CLI is published to PyPI as the [`htan`](https://pypi.org/project/hta
 1. **Check if installed**: `uv run htan --version`. If it errors with "Failed to spawn", proceed to step 2.
 2. **Install in the current working directory** without asking — do not offer alternatives, do not propose `uv tool install`, do not ask about the directory:
    ```bash
-   uv venv && uv pip install htan
+   uv venv --allow-existing && uv pip install "htan>=0.2"
    ```
 3. **Verify and check credentials**: `uv run htan --version && uv run htan config check`. If `config check` shows everything configured, setup is done.
 4. **Run `uv run htan init`** only if `config check` shows anything missing. Otherwise skip — re-running `htan init` on a fully-configured system is noise.
