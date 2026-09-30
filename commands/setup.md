@@ -55,7 +55,7 @@ uv run htan init
 
 This walks the user through each service:
 - **Synapse**: prompts for a Personal Access Token (or detects an existing `~/.synapseConfig` / `SYNAPSE_AUTH_TOKEN`).
-- **Portal**: with Synapse credentials present, auto-fetches portal credentials from the gated Synapse project (`syn73720854`) — requires membership in the [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team.
+- **Portal**: with Synapse credentials present, auto-fetches portal credentials from the gated Synapse file (`syn73720854`) — requires membership in the [HTAN Claude Skill Users](https://www.synapse.org/Team:3574960) team.
 - **BigQuery**: detects Application Default Credentials and `GOOGLE_CLOUD_PROJECT`.
 - **Gen3/CRDC**: detects `~/.gen3/credentials.json` (controlled-access; requires dbGaP authorization for study `phs002371`).
 
