@@ -11,13 +11,13 @@ Tools for accessing data from the **Human Tumor Atlas Network (HTAN)**, an NCI C
 
 On first use, check if the `htan` CLI is available by running `htan --version`. If it is not installed, guide the user through setup:
 
-1. **Create a venv in the user's project** (not in the plugin directory):
+1. **Create a venv in the user's project** and install:
    ```bash
-   uv venv && uv pip install "${CLAUDE_PLUGIN_ROOT}"
+   uv venv && uv pip install htan
    ```
    Or without uv:
    ```bash
-   python3 -m venv .venv && source .venv/bin/activate && pip install "${CLAUDE_PLUGIN_ROOT}"
+   python3 -m venv .venv && source .venv/bin/activate && pip install htan
    ```
 
 2. **Configure credentials** (portal, Synapse, etc.):
