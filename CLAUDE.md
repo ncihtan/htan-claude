@@ -64,7 +64,7 @@ These outputs document expected behavior end-to-end and are the closest thing th
 
 Credentials are managed by the `htan` CLI in standard config locations:
 
-- **Portal ClickHouse**: `~/.config/htan-skill/portal.json` or OS Keychain (populated by `htan init`, fetched from Synapse project syn73720854 gated by Team:3574960 membership)
+- **Portal ClickHouse**: `~/.config/htan-skill/portal.json` or OS Keychain (populated by `htan init`, fetched from file syn73720854 in Synapse project syn73720845 gated by Team:3574960 membership)
 - **Synapse**: `SYNAPSE_AUTH_TOKEN` env var or `~/.synapseConfig`
 - **Gen3**: `~/.gen3/credentials.json` (requires dbGaP authorization for `phs002371`)
 - **BigQuery**: Application Default Credentials (`gcloud auth application-default login`)
