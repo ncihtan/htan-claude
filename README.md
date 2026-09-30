@@ -30,9 +30,9 @@ A Claude Code plugin for working with the **Human Tumor Atlas Network (HTAN)** â
 
 Invoke the skill with `/htan`. On first use, Claude will:
 
-1. Create a venv in your project and install [`htan`](https://pypi.org/project/htan/) from PyPI (`uv pip install htan`)
-2. Run `uv run htan init` to configure credentials
-3. Suggest adding `Bash(uv run htan *)` to your project permissions for smooth usage
+1. Check for the `htan` CLI and, if missing, install it from [PyPI](https://pypi.org/project/htan/) into a `.venv` in your project
+2. Check your credentials, and run `uv run htan init` only if something is missing
+3. Suggest adding `Bash(uv run htan *)` to your project permissions, unless your settings already allow it
 
 The CLI itself lives at **[ncihtan/htan-cli](https://github.com/ncihtan/htan-cli)** â€” file CLI bugs and feature requests there.
 
