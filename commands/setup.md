@@ -18,10 +18,10 @@ Check credential status and configure access for the HTAN skill. The `htan` CLI 
 
 ### Step 1: Verify the CLI is installed
 
-Run `uv run htan --version`. If `htan` is not found, install it in a `.venv` in the **current working directory** without asking the user — do not offer alternatives like `uv tool install`, do not ask which directory to use:
+Run `uv run htan --version`. If `htan` is not found or reports a version below 0.2, install it in a `.venv` in the **current working directory** without asking the user — do not offer alternatives like `uv tool install`, do not ask which directory to use:
 
 ```bash
-uv venv && uv pip install htan
+uv venv --allow-existing && uv pip install "htan>=0.2"
 ```
 
 The package pulls in all required dependencies (`synapseclient`, `gen3`, `google-cloud-bigquery`, `pandas`).
