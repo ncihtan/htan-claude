@@ -12,7 +12,6 @@ This is a Claude Code plugin for working with the **Human Tumor Atlas Network (H
 htan-claude/
 ├── skills/htan/
 │   ├── SKILL.md                     # Skill definition (teaches Claude the htan CLI)
-│   ├── commands/setup.md            # /htan:setup slash command
 │   └── references/                  # HTAN-specific reference docs
 │       ├── clickhouse_portal.md     # Portal SQL schema and tips
 │       ├── bigquery_tables.md       # BigQuery table schemas and examples
@@ -20,6 +19,7 @@ htan-claude/
 │       ├── htan_data_model.md       # Components, controlled vocabularies
 │       ├── htan_atlases.md          # Atlas centers, cancer types, grants
 │       └── htan_docs_manual.md      # HTAN Manual sitemap, dbGaP access, citations
+├── commands/setup.md                # /htan:setup slash command
 ├── .claude-plugin/plugin.json       # Plugin metadata
 ├── demo/                            # Headless example outputs (claude -p traces)
 ├── README.md                        # Marketplace-facing user guide
