@@ -24,12 +24,6 @@ Run `uv run htan --version`. If `htan` is not found, install it in a `.venv` in 
 uv venv && uv pip install htan
 ```
 
-Fallback for environments without `uv`:
-
-```bash
-python3 -m venv .venv && source .venv/bin/activate && pip install htan
-```
-
 The package pulls in all required dependencies (`synapseclient`, `gen3`, `google-cloud-bigquery`, `pandas`).
 
 ### Step 2: Check status
