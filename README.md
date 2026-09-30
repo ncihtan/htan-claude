@@ -111,8 +111,8 @@ All commands accept `--help` for full usage.
 htan-claude/                         # this repo (plugin)
 ├── skills/htan/
 │   ├── SKILL.md                     # Skill definition (teaches Claude the CLI)
-│   ├── commands/                    # Slash commands (e.g. /htan:setup)
 │   └── references/                  # Reference docs (schema, auth, atlases)
+├── commands/setup.md                # /htan:setup slash command
 ├── .claude-plugin/plugin.json       # Plugin metadata
 ├── demo/                            # Headless example outputs
 └── CLAUDE.md                        # Plugin development notes
